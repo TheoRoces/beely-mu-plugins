@@ -1,0 +1,56 @@
+{
+  "_lisezmoi": "Source de vérité des composants suivis. Lu par beely-updater (sur les sites) et par bin/release-mu-plugin.mjs (à la publication) : une seule liste, donc pas de dérive entre ce qui est publié et ce qui est attendu. « chemin » est le dossier dans le dépôt, à omettre quand le dépôt ne contient qu'un composant — il détermine le préfixe des tags.",
+  "_cle_publique": "Clé publique Ed25519 (base64, 32 octets bruts) à laquelle les sites font confiance pour vérifier la signature détachée « <archive>.zip.sig ». Vide = aucune signature exigée, comportement d'avant. La poser arme le contrôle des deux côtés à la fois : bin/release-mu-plugin.mjs refuse alors de publier sans la clé privée correspondante, et les sites refusent toute archive non signée. Générer la paire avec « node bin/release-mu-plugin.mjs --generer-cle », puis coller ici la ligne affichée. Un site peut l'épingler hors du canal de mise à jour avec BEELY_UPDATER_CLE dans wp-config.php — c'est la seule façon de rendre la rotation possible sans repasser sur chaque site.",
+  "cle_publique": "",
+  "composants": {
+    "beely-hardening": {
+      "repo": "TheoRoces/beely-mu-plugins",
+      "chemin": "beely-hardening",
+      "source": "blueprint/mu-plugins/beely-hardening"
+    },
+    "beely-seo": {
+      "repo": "TheoRoces/beely-mu-plugins",
+      "chemin": "beely-seo",
+      "source": "blueprint/mu-plugins/beely-seo"
+    },
+    "beely-forms": {
+      "repo": "TheoRoces/beely-mu-plugins",
+      "chemin": "beely-forms",
+      "source": "blueprint/mu-plugins/beely-forms"
+    },
+    "beely-redirections": {
+      "repo": "TheoRoces/beely-mu-plugins",
+      "chemin": "beely-redirections",
+      "source": "blueprint/mu-plugins/beely-redirections"
+    },
+    "beely-updater": {
+      "repo": "TheoRoces/beely-mu-plugins",
+      "chemin": "beely-updater",
+      "source": "blueprint/mu-plugins/beely-updater"
+    },
+    "beely-cookies": {
+      "repo": "TheoRoces/beely-mu-plugins",
+      "chemin": "beely-cookies",
+      "source": "blueprint/mu-plugins/beely-cookies"
+    },
+    "beely-societe": {
+      "repo": "TheoRoces/beely-mu-plugins",
+      "chemin": "beely-societe",
+      "source": "blueprint/mu-plugins/beely-societe"
+    },
+    "beely-pages": {
+      "repo": "TheoRoces/beely-mu-plugins",
+      "chemin": "beely-pages",
+      "source": "blueprint/mu-plugins/beely-pages"
+    },
+    "beely-animations": {
+      "repo": "TheoRoces/beely-mu-plugins",
+      "chemin": "beely-animations",
+      "source": "blueprint/mu-plugins/beely-animations"
+    },
+    "beely-bridge": {
+      "repo": "TheoRoces/beely-bridge",
+      "source": "plugin/beely-bridge"
+    }
+  }
+}
