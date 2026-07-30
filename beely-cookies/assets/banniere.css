@@ -1,0 +1,320 @@
+/* Variables */
+:root {
+    --bc-primary: #1e1e1e;
+    --bc-accent: #000000;
+    --bc-bg: #ffffff;
+    --bc-text: #333333;
+    --bc-overlay: rgba(0, 0, 0, 0.5);
+}
+
+.beely-hidden {
+    display: none !important;
+}
+
+/* Overlay */
+#beely-cookie-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bc-overlay);
+    z-index: 999998;
+    backdrop-filter: blur(2px);
+}
+
+/* Bannière (Bas de page) */
+#beely-cookie-banner {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    max-width: 500px;
+    margin: 0 auto;
+    background: var(--bc-bg);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    z-index: 999999;
+    font-family: sans-serif;
+    border: 1px solid #eee;
+    animation: beelySlideUp 0.3s ease-out;
+}
+
+@media (max-width: 600px) {
+    #beely-cookie-banner {
+        bottom: 0;
+        left: 0;
+        right: 0;
+        max-width: 100%;
+        border-radius: 12px 12px 0 0;
+    }
+}
+
+.beely-cookie-content h2 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--bc-primary);
+}
+
+.beely-cookie-content p {
+    margin: 0 0 15px 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--bc-text);
+}
+
+.beely-cookie-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Boutons */
+.btn-beely-primary,
+.btn-beely-secondary,
+.btn-beely-link {
+    padding: 14px 16px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.btn-beely-primary {
+    background: var(--bc-accent);
+    color: white;
+    flex: 1;
+}
+
+.btn-beely-primary:hover {
+    opacity: 0.9;
+}
+
+.btn-beely-secondary {
+    background: #f0f0f0;
+    color: var(--bc-primary);
+}
+
+.btn-beely-secondary:hover {
+    background: #e0e0e0;
+}
+
+.btn-beely-link {
+    background: transparent;
+    color: #666;
+    text-decoration: underline;
+    padding: 8px;
+}
+
+.btn-beely-link:hover {
+    color: var(--bc-primary);
+}
+
+/* Modale */
+#beely-cookie-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 500px;
+    background: var(--bc-bg);
+    border-radius: 8px;
+    z-index: 999999;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+.beely-modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.beely-modal-header h2 {
+    margin: 0;
+    font-size: 16px;
+}
+
+#beely-close-modal {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    /* Mesuré à 2,85:1 en #999 sur fond blanc — sous le seuil WCAG AA, et sur
+       le seul contrôle qui permet de refermer la modale. #595959 donne 7:1. */
+    color: #595959;
+}
+
+.beely-modal-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.beely-intro {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.beely-consent-item {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.beely-consent-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.beely-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.beely-item-header span {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.beely-status-locked {
+    font-size: 11px;
+    background: #eee;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #666;
+}
+
+.beely-consent-item p {
+    font-size: 12px;
+    color: #666;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.beely-modal-footer {
+    padding: 15px 20px;
+    background: #f9f9f9;
+    text-align: right;
+}
+
+/* Switch Toggle */
+.beely-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+}
+
+.beely-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.beely-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 22px;
+}
+
+.beely-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked+.beely-slider {
+    background-color: var(--bc-accent);
+}
+
+input:checked+.beely-slider:before {
+    transform: translateX(18px);
+}
+
+@keyframes beelySlideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* --- Accessibilité --- */
+
+/* Un attribut `hidden` doit vraiment masquer : sans cette règle, la valeur
+   `display` posée plus haut sur ces éléments l'emporte, et le bandeau reste
+   visible tout en étant annoncé comme masqué. */
+[hidden] {
+    display: none !important;
+}
+
+/* Le focus doit se voir. Le contour par défaut disparaît sur fond blanc dans
+   plusieurs navigateurs ; on le repose explicitement, avec un décalage pour
+   qu'il ne se confonde pas avec la bordure du bouton. */
+#beely-cookie-banner :focus-visible,
+#beely-cookie-modal :focus-visible {
+    outline: 2px solid var(--bc-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+/* La bascule est un carré de 40 × 22 px : trop petit pour une cible tactile.
+   La zone cliquable est portée à 44 px sans changer le dessin. */
+.beely-switch::after {
+    content: '';
+    position: absolute;
+    inset: -11px;
+}
+
+.beely-switch {
+    position: relative;
+    flex-shrink: 0;
+}
+
+/* L'intitulé de catégorie est un `<label>` : il doit se comporter comme un
+   texte, pas hériter du curseur d'un contrôle. */
+.beely-item-header label:not(.beely-switch) {
+    font-weight: 600;
+    font-size: 14px;
+    cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #beely-cookie-banner {
+        animation: none;
+    }
+
+    .beely-slider,
+    .beely-slider:before {
+        transition: none;
+    }
+}
