@@ -1,0 +1,851 @@
+/* /inc/css/beely-pages-panel.css */
+
+/* --- 1. Toolbar --- */
+#bricks-toolbar li.pages {
+    display: none !important;
+}
+
+#beely-pages-button {
+    background: transparent;
+    border: none;
+    padding: 0 10px;
+    margin: 0;
+    cursor: pointer;
+    color: #999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    transition: all 0.2s ease;
+}
+
+#beely-pages-button:hover,
+#beely-pages-button.active {
+    color: #fff;
+    background-color: #2b3035;
+}
+
+#beely-pages-button svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+}
+
+/* --- 2. Panneau --- */
+#beely-pages-panel {
+    position: fixed;
+    top: 47px !important;
+    left: 0 !important;
+    width: 320px !important;
+    height: calc(100vh - 47px) !important;
+    background: #161a1d !important;
+    border-top: 1px solid #3d4752 !important;
+    border-right: 1px solid #3d4752 !important;
+    /* box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5) !important; */
+    z-index: 99999 !important;
+    display: none;
+    flex-direction: column;
+    color: #E2E6E9 !important;
+    box-sizing: border-box;
+}
+
+#beely-pages-panel.active {
+    display: flex;
+}
+
+#beely-pages-panel .panel-header {
+    padding: 18px 20px 16px 20px;
+    border-bottom: 1px solid #3d4752;
+    margin-bottom: 15px !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #fff;
+}
+
+.btn {
+    padding: 4px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 28px;
+    height: 28px;
+    color: #aaa;
+    transition: all 0.2s;
+}
+
+.btn:hover {
+    background: #3d4752;
+    color: #fff;
+}
+
+#beely-pages-search {
+    background: #101214 !important;
+    border: 1px solid #3d4752 !important;
+    color: #fff !important;
+    border-radius: 2px !important;
+    padding: 8px 10px !important;
+    margin: 0px auto 10px auto;
+    width: calc(100% - 40px);
+    box-sizing: border-box;
+    font-size: 13px;
+    line-height: 13px;
+}
+
+#beely-pages-search:focus {
+    border-color: #1e69fe !important;
+    outline: none;
+}
+
+/* --- 3. Liste --- */
+#beely-pages-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 20px 20px 40px 20px;
+}
+
+#beely-pages-list li {
+    display: flex;
+    align-items: center;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background 0.1s;
+    font-size: 13px;
+    color: #ccc;
+    position: relative;
+    box-sizing: border-box;
+    cursor: default;
+    user-select: none;
+    border: 1px solid transparent;
+    min-height: 32px;
+}
+
+#beely-pages-list li:hover {
+    background: #2b3035;
+    color: #fff;
+}
+
+/* STYLE POUR L'ÉDITION EN COURS */
+#beely-pages-list li.is-editing {
+    background: #2b3035 !important;
+    color: #fff !important;
+}
+
+#beely-pages-list li.is-editing .beely-icon-col {
+    background: #2b3035 !important;
+    opacity: 1 !important;
+}
+
+#beely-pages-list li.is-editing .beely-menu-btn {
+    color: #fff !important;
+}
+
+/* --- STYLE PAGE ACTIVE --- */
+#beely-pages-list li.page-active {
+    background: #1e252e !important;
+    border: 1px solid #1e69fe !important;
+    color: #fff;
+}
+
+#beely-pages-list li.page-active .page-title {
+    color: #1e69fe;
+    font-weight: 700;
+}
+
+/* --- Indentation --- */
+.depth-0 {
+    padding-left: 10px !important;
+}
+
+.depth-1 {
+    padding-left: 30px !important;
+}
+
+.depth-2 {
+    padding-left: 50px !important;
+}
+
+.depth-3 {
+    padding-left: 70px !important;
+}
+
+.depth-4 {
+    padding-left: 90px !important;
+}
+
+.depth-5 {
+    padding-left: 110px !important;
+}
+
+.depth-6 {
+    padding-left: 130px !important;
+}
+
+/* Icones */
+.drag-handle {
+    cursor: grab;
+    margin-right: 4px;
+    opacity: 0.3;
+    display: flex;
+    align-items: center;
+}
+
+li:hover .drag-handle {
+    opacity: 1;
+}
+
+.beely-icon-col {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-right: 4px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    position: relative;
+    z-index: 2;
+    background: #161a1d;
+}
+
+#beely-pages-list li:hover .beely-icon-col {
+    opacity: 1;
+    background: #2b3035;
+}
+
+#beely-pages-list li.page-active .beely-icon-col {
+    background: #1e252e !important;
+    opacity: 1;
+    color: #1e69fe;
+}
+
+.beely-icon-col svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+.icon-folder-open {
+    display: none !important;
+}
+
+.icon-folder-closed {
+    display: block !important;
+}
+
+li.is-open .icon-folder-closed {
+    display: none !important;
+}
+
+li.is-open .icon-folder-open {
+    display: block !important;
+}
+
+.page-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    padding: 4px 0;
+    position: relative;
+    z-index: 2;
+}
+
+.beely-menu-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    margin-left: auto;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    position: relative;
+    z-index: 2;
+}
+
+li:hover .beely-menu-btn {
+    color: #fff;
+}
+
+.beely-menu-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* --- 4. Popup --- */
+#beely-page-popup {
+    position: fixed;
+    top: 47px !important;
+    left: 319px !important;
+    width: 360px !important;
+    height: calc(100vh - 47px) !important;
+    background: #161a1d !important;
+    border-top: 1px solid #3d4752 !important;
+    border-right: 1px solid #3d4752 !important;
+    border-left: 1px solid #3d4752 !important;
+    /* box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5) !important; */
+    z-index: 99998 !important;
+    padding: 0px !important;
+    box-sizing: border-box;
+    display: none;
+}
+
+#beely-page-popup label {
+    display: flex;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 6px;
+    font-weight: 700;
+    margin-top: 15px;
+}
+
+#beely-page-popup input,
+#beely-page-popup select,
+#beely-page-popup textarea {
+    width: 100%;
+    background: #101214 !important;
+    border: 1px solid #3d4752 !important;
+    color: #fff !important;
+    border-radius: 3px !important;
+    padding: 10px !important;
+    margin-bottom: 0;
+    font-size: 13px;
+    line-height: 13px;
+}
+
+#beely-page-popup input:focus,
+#beely-page-popup select:focus,
+#beely-page-popup textarea:focus {
+    border-color: #1e69fe !important;
+    outline: none;
+}
+
+#beely-page-popup textarea {
+    resize: vertical;
+    min-height: 80px;
+    max-height: 300px;
+}
+
+/* --- Checkbox Custom Style (100% Clickable & Blue Square) --- */
+.beely-checkbox-wrapper {
+    margin-top: 20px !important;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 15px;
+    background: #1d2327;
+    border: 1px solid #3d4752;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 100%;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+    user-select: none;
+    position: relative;
+}
+
+.beely-checkbox-wrapper:hover {
+    background: #23282d;
+    border-color: #666;
+}
+
+/* Hide native checkbox */
+.beely-checkbox-wrapper input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+/* Visual square */
+.beely-checkbox-fake {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 18px;
+    width: 18px;
+    min-width: 18px;
+    background-color: #101214;
+    border: 1px solid #555;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+/* Inner blue square */
+.beely-checkbox-fake::after {
+    content: "";
+    width: 10px;
+    height: 10px;
+    background-color: #1e69fe;
+    border-radius: 1px;
+    transform: scale(0);
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* --- STATES --- */
+
+/* Wrapper active */
+.beely-checkbox-wrapper:has(input:checked) {
+    border-color: #1e69fe;
+    background: rgba(30, 105, 254, 0.05);
+}
+
+/* Square active */
+.beely-checkbox-wrapper input:checked~.beely-checkbox-fake {
+    border-color: #1e69fe;
+}
+
+/* Show blue square */
+.beely-checkbox-wrapper input:checked~.beely-checkbox-fake::after {
+    transform: scale(1);
+}
+
+/* Text active */
+.beely-label-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: #ccc;
+    transition: color 0.2s;
+    text-transform: initial;
+}
+
+.beely-checkbox-wrapper input:checked~.beely-label-text {
+    color: #fff;
+}
+
+#beely-page-popup .btn {
+    border: 1px solid #3d4752;
+    background: #2b3035;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+}
+
+#beely-page-popup .btn.primary {
+    background: #1e69fe;
+    border-color: #1e69fe;
+}
+
+#beely-page-popup .btn.danger {
+    background: #3a1515;
+    border-color: #522;
+    color: #ff6666;
+}
+
+#beely-slug-feedback {
+    font-size: 11px;
+    margin-top: 4px;
+    display: none;
+}
+
+#beely-slug-feedback.error {
+    color: #ff5555;
+    display: block;
+}
+
+#beely-slug-feedback.ok {
+    color: #4caf50;
+    display: block;
+}
+
+/* --- 5. Image Uploader --- */
+.beely-image-wrapper {
+    margin-top: 5px;
+    border: 1px dashed #3d4752;
+    background: #1d2327;
+    border-radius: 4px;
+    height: 160px;
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.beely-image-wrapper:hover {
+    border-color: #1e69fe;
+    background: #23282d;
+}
+
+.beely-image-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #666;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.beely-image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+#beely-remove-image {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border-radius: 4px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+}
+
+#beely-remove-image:hover {
+    background: #d33;
+}
+
+.beely-image-wrapper.has-image .beely-image-placeholder {
+    display: none;
+}
+
+.beely-image-wrapper.has-image #beely-remove-image {
+    display: flex;
+}
+
+.beely-image-wrapper.has-image {
+    border-style: solid;
+    border-color: #3d4752;
+}
+
+/* --- 6. Drag Visuals --- */
+#beely-drop-line {
+    position: fixed;
+    height: 3px;
+    background: #1e69fe;
+    z-index: 100000;
+    pointer-events: none;
+    display: none;
+    box-shadow: 0 0 6px #1e69fe;
+    border-radius: 2px;
+    top: 0;
+    left: 0;
+    will-change: transform, width;
+}
+
+#beely-drop-line::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: -3px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #1e69fe;
+}
+
+li.dragging {
+    opacity: 0.4;
+    background: #000 !important;
+}
+
+/* --- 7. Toast --- */
+#beely-toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 100001;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.beely-toast {
+    background: #1e1e1e;
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 4px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    border-left: 4px solid #1e69fe;
+    font-size: 13px;
+    font-weight: 500;
+    min-width: 200px;
+    animation: beelySlideIn 0.3s ease-out;
+    opacity: 1;
+    transition: opacity 0.3s;
+}
+
+.beely-toast.error {
+    border-left-color: #ff5555;
+}
+
+.beely-toast.success {
+    border-left-color: #4caf50;
+}
+
+@keyframes beelySlideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* --- 8. Overlay Transparent --- */
+#beely-panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: transparent;
+    z-index: 99990;
+    display: none;
+}
+
+#beely-panel-overlay.active {
+    display: block;
+}
+
+/* --- 9. Confirm Overlay --- */
+#beely-confirm-overlay,
+#beely-unsaved-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+    z-index: 100005;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    animation: beelyFadeIn 0.2s forwards;
+}
+
+.beely-confirm-box {
+    background: #161a1d;
+    border: 1px solid #3d4752;
+    border-radius: 6px;
+    padding: 25px;
+    width: 340px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+    text-align: center;
+}
+
+.beely-confirm-box h3 {
+    margin: 0 0 10px;
+    font-size: 16px;
+    color: #fff;
+    font-weight: 600;
+}
+
+.beely-confirm-box p {
+    margin: 0 0 20px;
+    font-size: 13px;
+    color: #ccc;
+    line-height: 1.5;
+}
+
+.beely-confirm-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.beely-confirm-actions.vertical-actions {
+    flex-direction: column;
+}
+
+.beely-confirm-actions button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.beely-confirm-cancel {
+    background: transparent;
+    border: 1px solid #3d4752 !important;
+    color: #ccc;
+}
+
+.beely-confirm-cancel:hover {
+    background: #3d4752;
+    color: #fff;
+}
+
+.beely-confirm-cancel.plain {
+    border: none !important;
+    color: #999;
+}
+
+.beely-confirm-cancel.plain:hover {
+    color: #fff;
+    background: transparent;
+    text-decoration: underline;
+}
+
+.beely-confirm-ok {
+    background: #1e69fe;
+    color: #fff;
+}
+
+.beely-confirm-ok:hover {
+    background: #165be8;
+}
+
+.beely-confirm-ok.danger {
+    background: #d33;
+}
+
+.beely-confirm-ok.danger:hover {
+    background: #b00;
+}
+
+@keyframes beelyFadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* --- 10. Tree Guide Lines --- */
+.beely-tree-guide {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    border-left: 1px dotted #48525c;
+    z-index: 1;
+    pointer-events: none;
+}
+
+#beely-pages-list li:not(.depth-0)::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    border-left: 1px dotted #48525c;
+    z-index: 1;
+    pointer-events: none;
+}
+
+#beely-pages-list li:not(.depth-0).is-last-child::before {
+    height: 50%;
+}
+
+#beely-pages-list li:not(.depth-0)::after {
+    content: '';
+    position: absolute;
+    height: 1px;
+    top: 50%;
+    width: 11px;
+    border-top: 1px dotted #48525c;
+    z-index: 1;
+    pointer-events: none;
+}
+
+#beely-pages-list li.depth-1::before {
+    left: 19px;
+}
+
+#beely-pages-list li.depth-1::after {
+    left: 19px;
+}
+
+#beely-pages-list li.depth-2::before {
+    left: 39px;
+}
+
+#beely-pages-list li.depth-2::after {
+    left: 39px;
+}
+
+#beely-pages-list li.depth-3::before {
+    left: 59px;
+}
+
+#beely-pages-list li.depth-3::after {
+    left: 59px;
+}
+
+#beely-pages-list li.depth-4::before {
+    left: 79px;
+}
+
+#beely-pages-list li.depth-4::after {
+    left: 79px;
+}
+
+#beely-pages-list li.depth-5::before {
+    left: 99px;
+}
+
+#beely-pages-list li.depth-5::after {
+    left: 99px;
+}
+
+#beely-pages-list li.depth-6::before {
+    left: 119px;
+}
+
+#beely-pages-list li.depth-6::after {
+    left: 119px;
+}
+
+/* --- 11. Aide et compteurs SEO --- */
+#beely-page-popup .beely-aide {
+    margin: 4px 0 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #7d8996;
+}
+
+.beely-compteur {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: #7d8996;
+}
+
+/* Trois états, distingués par la couleur ET par le libellé au survol :
+   la couleur seule ne suffirait pas à qui ne la perçoit pas (WCAG 1.4.1). */
+.beely-compteur.ok    { color: #4caf50; }
+.beely-compteur.court { color: #d9a441; }
+.beely-compteur.long  { color: #ff6b6b; }
