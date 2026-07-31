@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Beely — mises à jour
  * Description: Tient à jour les mu-plugins maison depuis leurs dépôts GitHub. Vérifie chaque jour, applique les correctifs et les versions mineures, retient les majeures.
- * Version:     1.7.0
+ * Version:     1.7.1
  * Author:      Beely
  * Requires PHP: 8.1
  *
