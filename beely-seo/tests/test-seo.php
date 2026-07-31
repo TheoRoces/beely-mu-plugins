@@ -811,7 +811,11 @@ test(
 		foreach (
 			[
 				'https://client.beely-staging.fr',
-				'https://client.beely-staging.fr',
+				// Un domaine de recette qui n'est pas le nôtre : l'étiquette est au
+				// milieu du nom et le TLD n'est pas .fr. Un renommage global avait
+				// recopié la ligne précédente par-dessus celle-ci, et le cas ne se
+				// testait plus — la liste comptait toujours cinq entrées.
+				'https://boutique.hebergeur-staging.com',
 				'https://site.client-preprod.fr',
 				'https://staging.exemple.fr',
 				'https://exemple.local',
