@@ -165,6 +165,20 @@ test( 'par défaut, correctifs et mineures passent, les majeures attendent', fun
 	assert_that( ! Updater::auto_autorise( 'majeure' ), 'une majeure ne devrait pas passer seule' );
 } );
 
+test( 'un palier inconnu ne s’applique jamais seul', function (): void {
+	/*
+	 * La mine : `array_search` rend `false` pour un palier inconnu, et
+	 * `false <= 1` est **vrai** en PHP. Le palier inconnu passait donc pour un
+	 * correctif — le plus bas — et s'installait tout seul. Aucun appel ne
+	 * pouvait l'atteindre tant que `palier()` ne rendait que trois valeurs,
+	 * mais le quatrième cas est arrivé : « nouveau », la première pose d'un
+	 * composant absent, qui doit précisément attendre une décision.
+	 */
+	assert_that( ! Updater::auto_autorise( 'nouveau' ), 'une première pose ne devrait pas s’appliquer seule' );
+	assert_that( ! Updater::auto_autorise( 'patch' ), 'un palier en anglais ne devrait rien appliquer' );
+	assert_that( ! Updater::auto_autorise( '' ), 'un palier vide ne devrait rien appliquer' );
+} );
+
 test( 'un réglage explicite fixe le plafond', function (): void {
 	assert_same( 'majeure', Updater::plafond_auto( true ), 'true accepte tout :' );
 	assert_same( null, Updater::plafond_auto( false ), 'false n’applique rien :' );

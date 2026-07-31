@@ -28,6 +28,11 @@
       "chemin": "beely-updater",
       "source": "blueprint/mu-plugins/beely-updater"
     },
+    "beely-builder": {
+      "repo": "TheoRoces/beely-mu-plugins",
+      "chemin": "beely-builder",
+      "source": "blueprint/mu-plugins/beely-builder"
+    },
     "beely-cookies": {
       "repo": "TheoRoces/beely-mu-plugins",
       "chemin": "beely-cookies",
