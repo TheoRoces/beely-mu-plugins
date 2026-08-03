@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Beely — confort du builder
  * Description: Quatre manques de Bricks Builder, comblés sans extension tierce : la classe active reste sélectionnée, un curseur balaie les largeurs au pixel, un double-clic dans la structure ouvre un composant, et le canevas reçoit le CSS des classes globales.
- * Version:     2.1.0
+ * Version:     2.2.0
  * Author:      Beely
  * Requires PHP: 8.1
  *
@@ -162,6 +162,31 @@ function fonctions_actives(): array {
  * seconde source de vérité qui pourrait dériver du front. C'est aussi le patron
  * que Bricks emploie lui-même pour l'éditeur de blocs
  * (`generate_gutenberg_global_classes_css()`, `includes/integrations/block-editor.php`).
+ *
+ * ## Et le poids des règles, mesuré plutôt que supposé (2.2.0)
+ *
+ * Le JavaScript de Bricks réémet ses classes **après** notre feuille, dans une
+ * balise par classe. À spécificité égale il gagne, ce qui est voulu. Le prix,
+ * longtemps accepté : quand il réémet une classe de **base** après un
+ * modificateur que nous seuls portons, la base l'emporte — `.c-entete--centre`
+ * rendue `row flex-end` dans le canevas contre `column center` sur le front.
+ *
+ * La cause a été établie en demandant au navigateur quelle règle gagne
+ * (`CSS.getMatchedStylesForNode`) plutôt qu'en la déduisant des feuilles. Les
+ * trois règles apparaissent dans cet ordre de précédence croissante :
+ *
+ *     rang 11  .c-entete.brxe-block          = row      ← notre feuille
+ *     rang 12  .c-entete--centre.brxe-block  = column   ← notre feuille
+ *     rang 13  .c-entete.brxe-block          = row      ← bricks-global-class-700284
+ *
+ * Ce que la cinquième hypothèse supposait sans jamais le montrer, et qu'aucun
+ * `curl` ne pouvait voir : la balise gagnante est injectée après chargement.
+ *
+ * Le correctif ne double pas la spécificité de la feuille — cela rendrait tout
+ * panneau inerte, ce que le §5 refuse. Il ne sert pas le complément non plus —
+ * mesuré pire (11 écarts contre 4). Il alourdit **les seules classes qu'aucun
+ * élément ne porte**, celles pour lesquelles Bricks n'émet rien du tout : voir
+ * `classes_hors_index()`.
  * ---------------------------------------------------------------------- */
 
 /**
@@ -324,6 +349,158 @@ function derniere_carte( ?array $carte = null ): array {
 }
 
 /**
+ * Les classes qu'aucun élément ne porte, et que le canevas ne stylera jamais.
+ *
+ * C'est la seule question qui décide du poids d'une règle, et elle a une réponse
+ * mesurée. Le JavaScript du canevas (`elementsPerGlobalClassId`,
+ * `assets/js/iframe.min.js`) émet une balise `bricks-global-class-<id>` pour
+ * **exactement** les classes présentes dans le `_cssGlobalClasses` d'un élément
+ * de composant : 79 balises pour 79 classes sur esra-2 le 03/08/2026, aucune de
+ * plus, aucune de moins.
+ *
+ * Il n'émet donc **rien** pour une classe qu'un composant ne pose que par une
+ * propriété de type `class` — une variante. Sa propre résolution y échoue :
+ * elle lit `property.default` comme une liste d'**identifiants d'option**
+ * (`options.find(o => o.id === e)`), alors que Bricks y range des
+ * **identifiants de classe** (`default: ["700284"]`). Le tableau résolu sort
+ * vide, et la variante n'entre jamais dans la carte.
+ *
+ * Pour ces classes-là, notre feuille est la seule source. Aucun panneau ne peut
+ * en devenir inerte, puisqu'aucune balise ne les sert — d'où le droit de les
+ * servir plus lourd. Pour toutes les autres, on n'y touche pas : le JavaScript
+ * doit continuer de l'emporter, sinon une modification faite dans le builder
+ * n'apparaîtrait plus (§5).
+ *
+ * @param array<string, array<int, string>> $parElements   Classes portées par un élément.
+ * @param array<string, array<int, string>> $parProprietes Classes posées par une propriété.
+ * @return array<string, array<int, string>>
+ */
+function classes_hors_index( array $parElements, array $parProprietes ): array {
+	return array_diff_key( $parProprietes, $parElements );
+}
+
+/**
+ * Le nombre de classes hors index de la dernière génération, pour l'en-tête.
+ *
+ * Retenu plutôt que recalculé, pour la même raison que `derniere_carte()` :
+ * l'en-tête doit décrire ce qui a réellement été émis. Une feuille peut sortir
+ * de 80 Ko et ne pas porter la seule règle qui manquait.
+ */
+function dernier_hors_index( ?int $nombre = null ): int {
+	static $retenu = 0;
+
+	if ( null !== $nombre ) {
+		$retenu = $nombre;
+	}
+
+	return $retenu;
+}
+
+/**
+ * Double le nom des classes visées, le temps d'une génération.
+ *
+ * On ne réécrit pas le CSS produit : Bricks construit son sélecteur à partir du
+ * **nom** de la classe (`$css_selector = ".{$element['_cssGlobalClass']}"`,
+ * `includes/assets.php`). Un nom `c-x.c-x` sort donc en `.c-x.c-x.brxe-block`,
+ * et la même substitution suit les sous-sélecteurs et les pseudo-classes sans
+ * qu'on ait à les connaître. Aucun analyseur de sélecteurs maison, donc, et
+ * aucune seconde source de vérité : les valeurs restent celles de Bricks.
+ *
+ * @param array<int, string> $ids Identifiants de classes à alourdir.
+ * @return array<int, mixed> Les classes globales telles qu'elles étaient.
+ */
+function doubler_les_noms( array $ids ): array {
+	$sauvegarde = \Bricks\Database::$global_data['globalClasses'] ?? [];
+
+	if ( ! $ids || ! is_array( $sauvegarde ) ) {
+		return is_array( $sauvegarde ) ? $sauvegarde : [];
+	}
+
+	// Les identifiants sont ramenés à des chaînes : `json_decode` transforme une
+	// clé numérique en entier, et la comparaison échouerait en silence.
+	$vises = [];
+
+	foreach ( $ids as $id ) {
+		$vises[ (string) $id ] = true;
+	}
+
+	foreach ( $sauvegarde as $index => $classe ) {
+		if ( ! is_array( $classe ) ) {
+			continue;
+		}
+
+		$nom = (string) ( $classe['name'] ?? '' );
+
+		if ( '' === $nom || ! isset( $vises[ (string) ( $classe['id'] ?? '' ) ] ) ) {
+			continue;
+		}
+
+		\Bricks\Database::$global_data['globalClasses'][ $index ]['name'] = $nom . '.' . $nom;
+	}
+
+	return $sauvegarde;
+}
+
+/**
+ * Génère le CSS d'une carte, en empruntant les propriétés statiques de Bricks.
+ *
+ * On les prête le temps de la génération et on les rend telles quelles — y
+ * compris si la génération lève. Sans ce `finally`, un site dont une classe
+ * porte un réglage inattendu garderait une carte étrangère pour le reste de la
+ * requête.
+ *
+ * @param array<string, array<int, string>> $carte   Classe => types d'éléments.
+ * @param bool                              $doubler Alourdir le sélecteur.
+ */
+function generer_css( array $carte, bool $doubler = false ): string {
+	if ( ! $carte ) {
+		return '';
+	}
+
+	$sauvegarde = [
+		'global_classes_elements'    => \Bricks\Assets::$global_classes_elements,
+		'inline_css'                 => \Bricks\Assets::$inline_css,
+		'inline_css_breakpoints'     => \Bricks\Assets::$inline_css_breakpoints,
+		'unique_inline_css'          => \Bricks\Assets::$unique_inline_css,
+		'inline_css_dynamic_data'    => \Bricks\Assets::$inline_css_dynamic_data,
+		'current_generating_element' => \Bricks\Assets::$current_generating_element,
+	];
+
+	$classes = $doubler
+		? doubler_les_noms( array_keys( $carte ) )
+		: ( \Bricks\Database::$global_data['globalClasses'] ?? [] );
+
+	try {
+		\Bricks\Assets::$global_classes_elements = $carte;
+
+		/*
+		 * Partir d'un cache de dédoublonnage vide.
+		 *
+		 * Bricks retient dans `$unique_inline_css` ce qu'il a déjà émis, pour ne pas
+		 * répéter une règle. Le canevas a déjà rempli ce cache avant nous : nos
+		 * règles y passaient pour des doublons et disparaissaient — pas toutes, les
+		 * plus banales seulement, ce qui donnait une feuille d'apparence normale.
+		 *
+		 * La seconde passe le vide aussi : ses règles portent les mêmes
+		 * déclarations que la première, au sélecteur près.
+		 */
+		\Bricks\Assets::$unique_inline_css       = [];
+		\Bricks\Assets::$inline_css_dynamic_data = '';
+
+		return (string) \Bricks\Assets::generate_global_classes( 'beely_canevas' );
+	} finally {
+		\Bricks\Assets::$global_classes_elements    = $sauvegarde['global_classes_elements'];
+		\Bricks\Assets::$inline_css                 = $sauvegarde['inline_css'];
+		\Bricks\Assets::$inline_css_breakpoints     = $sauvegarde['inline_css_breakpoints'];
+		\Bricks\Assets::$unique_inline_css          = $sauvegarde['unique_inline_css'];
+		\Bricks\Assets::$inline_css_dynamic_data    = $sauvegarde['inline_css_dynamic_data'];
+		\Bricks\Assets::$current_generating_element = $sauvegarde['current_generating_element'];
+
+		\Bricks\Database::$global_data['globalClasses'] = $classes;
+	}
+}
+
+/**
  * Le CSS des classes globales employées par une page et par les composants.
  *
  * Les composants sont **tous** indexés, employés ou non : le builder peut en
@@ -336,11 +513,11 @@ function css_des_classes_globales( int $post_id ): string {
 		return '';
 	}
 
-	$page    = [];
-	$contenu = $post_id ? get_post_meta( $post_id, BRICKS_DB_PAGE_CONTENT, true ) : [];
+	$parElements = [];
+	$contenu     = $post_id ? get_post_meta( $post_id, BRICKS_DB_PAGE_CONTENT, true ) : [];
 
 	if ( is_array( $contenu ) ) {
-		indexer_elements( $contenu, $page );
+		indexer_elements( $contenu, $parElements );
 	}
 
 	/*
@@ -357,13 +534,14 @@ function css_des_classes_globales( int $post_id ): string {
 	 * faite dans le builder doit rester visible, sinon le panneau devient inerte
 	 * et l'on a créé le défaut inverse de celui qu'on corrige.
 	 *
-	 * Le prix de ce choix est connu et mesuré : quand le JavaScript réémet une
-	 * classe de base après un modificateur que nous seuls portons, la base
-	 * l'emporte. Un seul cas sur 119 classes — `.c-ligne--finale`, 16 px au lieu
-	 * de 18. `bin/check-canevas.mjs` le signale au lieu de le taire.
+	 * Deux index séparés, plutôt qu'un seul : ce qu'un élément porte, et ce
+	 * qu'une propriété pose. La différence entre les deux — voir
+	 * `classes_hors_index()` — est exactement ce que le canevas ne stylera
+	 * jamais, et donc ce qu'on peut servir plus lourd sans rendre un panneau
+	 * inerte.
 	 */
-	$carte      = $page;
-	$composants = \Bricks\Database::$global_data['components'] ?? get_option( BRICKS_DB_COMPONENTS, [] );
+	$parProprietes = [];
+	$composants    = \Bricks\Database::$global_data['components'] ?? get_option( BRICKS_DB_COMPONENTS, [] );
 
 	if ( is_array( $composants ) ) {
 		foreach ( $composants as $composant ) {
@@ -371,8 +549,16 @@ function css_des_classes_globales( int $post_id ): string {
 				continue;
 			}
 
-			indexer_elements( (array) ( $composant['elements'] ?? [] ), $carte );
-			indexer_proprietes_classe( $composant, $carte );
+			indexer_elements( (array) ( $composant['elements'] ?? [] ), $parElements );
+			indexer_proprietes_classe( $composant, $parProprietes );
+		}
+	}
+
+	$carte = $parElements;
+
+	foreach ( $parProprietes as $id => $types ) {
+		foreach ( $types as $type ) {
+			ajouter_usage( (string) $id, $type, $carte );
 		}
 	}
 
@@ -402,46 +588,22 @@ function css_des_classes_globales( int $post_id ): string {
 		\Bricks\Elements::load_elements();
 	}
 
+	$horsIndex = classes_hors_index( $parElements, $parProprietes );
+
+	dernier_hors_index( count( $horsIndex ) );
+
 	/*
-	 * On prête les propriétés statiques de Bricks le temps de la génération, et
-	 * on les rend telles quelles — y compris si la génération lève. Sans ce
-	 * `finally`, un site dont une classe porte un réglage inattendu garderait
-	 * une carte étrangère pour le reste de la requête.
+	 * La première passe est inchangée, et c'est la ceinture : si la seconde se
+	 * trompait de classe, on retomberait sur le comportement d'avant plutôt que
+	 * sur une page sans style.
+	 *
+	 * La seconde réémet les seules classes qu'aucun élément ne porte, sélecteur
+	 * doublé (0-3-0). Elles cessent ainsi de perdre contre la classe de base que
+	 * le JavaScript réémet après nous — la limite mesurée du 03/08/2026 :
+	 * `.c-entete--centre` rendue `row flex-end` dans le canevas contre
+	 * `column center` sur le front, et `.c-ligne--finale` à 16 px au lieu de 18.
 	 */
-	$sauvegarde = [
-		'global_classes_elements'    => \Bricks\Assets::$global_classes_elements,
-		'inline_css'                 => \Bricks\Assets::$inline_css,
-		'inline_css_breakpoints'     => \Bricks\Assets::$inline_css_breakpoints,
-		'unique_inline_css'          => \Bricks\Assets::$unique_inline_css,
-		'inline_css_dynamic_data'    => \Bricks\Assets::$inline_css_dynamic_data,
-		'current_generating_element' => \Bricks\Assets::$current_generating_element,
-	];
-
-	try {
-		\Bricks\Assets::$global_classes_elements = $carte;
-
-		/*
-		 * Partir d'un cache de dédoublonnage vide.
-		 *
-		 * Bricks retient dans `$unique_inline_css` ce qu'il a déjà émis, pour ne pas
-		 * répéter une règle. Le canevas a déjà rempli ce cache avant nous : nos
-		 * règles y passaient pour des doublons et disparaissaient — pas toutes, les
-		 * plus banales seulement, ce qui donnait une feuille d'apparence normale.
-		 */
-		\Bricks\Assets::$unique_inline_css       = [];
-		\Bricks\Assets::$inline_css_dynamic_data = '';
-
-		$css = (string) \Bricks\Assets::generate_global_classes( 'beely_canevas' );
-	} finally {
-		\Bricks\Assets::$global_classes_elements    = $sauvegarde['global_classes_elements'];
-		\Bricks\Assets::$inline_css                 = $sauvegarde['inline_css'];
-		\Bricks\Assets::$inline_css_breakpoints     = $sauvegarde['inline_css_breakpoints'];
-		\Bricks\Assets::$unique_inline_css          = $sauvegarde['unique_inline_css'];
-		\Bricks\Assets::$inline_css_dynamic_data    = $sauvegarde['inline_css_dynamic_data'];
-		\Bricks\Assets::$current_generating_element = $sauvegarde['current_generating_element'];
-	}
-
-	return $css;
+	return generer_css( $carte ) . generer_css( $horsIndex, true );
 }
 
 /**
@@ -499,9 +661,10 @@ add_action(
 		 * on lit « 41 Ko servis » et l'on conclut que ça marche.
 		 */
 		$css = sprintf(
-			"/* Beely — classes globales du canevas · page %d · %d classe(s) */\n%s",
+			"/* Beely — classes globales du canevas · page %d · %d classe(s), dont %d hors index */\n%s",
 			$post_id,
 			count( derniere_carte() ),
+			dernier_hors_index(),
 			$css
 		);
 

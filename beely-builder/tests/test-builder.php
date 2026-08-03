@@ -52,6 +52,7 @@ define( 'ABSPATH', __DIR__ );
  * déclare déjà son namespace sans accolades : d'où le fichier voisin.
  */
 require_once __DIR__ . '/doublure-bricks.php';
+require_once __DIR__ . '/doublure-bricks-database.php';
 
 /* --- Doublures WordPress --------------------------------------------- */
 
@@ -943,6 +944,79 @@ test( 'une propriété qui n’est pas de type class est ignorée', function ():
 	);
 
 	assert_same( [], $carte );
+} );
+
+/*
+ * Le poids des règles — la limite du 03/08/2026, et sa levée.
+ *
+ * Ces quatre tests-ci tiennent la **décision**, pas la génération : quelle
+ * classe a le droit d'être servie plus lourd. C'est là que le défaut se joue, et
+ * c'est mesurable hors ligne parce que la décision est pure.
+ *
+ * Ce qu'ils ne peuvent pas dire : que Bricks émet bien le sélecteur doublé. Ça
+ * se mesure dans un navigateur, des deux côtés — `bin/check-canevas.mjs`.
+ */
+
+test( 'une classe qu’aucun élément ne porte est servie plus lourd', function (): void {
+	// `c-entete--centre` n'existe que dans l'option d'une variante : le
+	// JavaScript du canevas n'émet rien pour elle, et sa classe de base la
+	// recouvrait. Mesuré : `row flex-end` dans le canevas, `column center` sur le
+	// front.
+	assert_same(
+		[ 'modif' => [ 'block' ] ],
+		classes_hors_index( [ 'base' => [ 'block' ] ], [ 'modif' => [ 'block' ] ] )
+	);
+} );
+
+test( 'une classe portée par un élément n’est jamais alourdie', function (): void {
+	/*
+	 * C'est le test d'absence qui protège le §5. Bricks émet une balise pour
+	 * toute classe présente dans le `_cssGlobalClasses` d'un élément de composant
+	 * — 79 sur 79, mesuré le 03/08/2026 sur esra-2. L'alourdir ferait gagner
+	 * notre valeur figée contre celle du panneau : une modification faite dans le
+	 * builder n'apparaîtrait plus, et l'on aurait créé le défaut inverse.
+	 */
+	assert_same(
+		[],
+		classes_hors_index(
+			[ 'partagee' => [ 'button' ] ],
+			[ 'partagee' => [ 'button' ] ]
+		),
+		'une classe portée par un élément a déjà sa balise'
+	);
+} );
+
+test( 'seul le nom des classes visées est doublé', function (): void {
+	\Bricks\Database::$global_data['globalClasses'] = [
+		[ 'id' => '111', 'name' => 'c-entete' ],
+		[ 'id' => '222', 'name' => 'c-entete--centre' ],
+		[ 'id' => '333', 'name' => '' ],
+	];
+
+	$avant = doubler_les_noms( [ '222', '333' ] );
+
+	// Bricks construit son sélecteur depuis le nom : `.c-x.c-x` sort en 0-3-0, et
+	// la substitution suit les sous-sélecteurs sans qu'on les connaisse.
+	assert_same(
+		[ 'c-entete', 'c-entete--centre.c-entete--centre', '' ],
+		array_column( \Bricks\Database::$global_data['globalClasses'], 'name' )
+	);
+
+	// La valeur rendue est ce qui permet de restaurer : sans elle, la feuille du
+	// front hériterait de noms doublés pour le reste de la requête.
+	assert_same( 'c-entete--centre', $avant[1]['name'], 'l’état d’avant n’est pas rendu' );
+
+	\Bricks\Database::$global_data['globalClasses'] = $avant;
+} );
+
+test( 'les noms doublés sont rendus même en cas d’échec', function (): void {
+	// Même raison que le `finally` des propriétés statiques : une génération qui
+	// lève laisserait `.c-x.c-x` dans les classes globales, et le front servirait
+	// ce sélecteur à chaque visiteur.
+	assert_true(
+		str_contains( code_php(), '\Bricks\Database::$global_data[\'globalClasses\'] = $classes;' ),
+		'les noms doublés ne sont pas restaurés dans le finally'
+	);
 } );
 
 test( 'la feuille n’est servie que dans le canevas', function (): void {
