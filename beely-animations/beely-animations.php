@@ -1,57 +1,116 @@
 <?php
 /**
- * Plugin Name: Bricks Animation System (Attributes)
- * Description: Système d'animation complet piloté par attributs HTML pour Bricks Builder
- * Version: 2.1.0
+ * Plugin Name: Beely — animations
+ * Description: Animations d'apparition au défilement, parallaxe, compteurs, machine à écrire et survols — pilotés par des attributs HTML posés dans Bricks. Aucune bibliothèque tierce, aucun CDN.
+ * Version:     2.2.0
+ * Author:      Beely
+ * Requires PHP: 8.1
+ *
+ * ## Pourquoi une extension maison
+ *
+ * Une maquette est statique : elle ne dit ni les états, ni les transitions. Il
+ * faut donc les fournir, et sur chaque page. Les bibliothèques qui font cela —
+ * AOS, GSAP, ScrollReveal — se chargent presque toujours par un CDN : c'est la
+ * règle « zéro dépendance externe » rompue pour une entrée de section, et
+ * l'adresse IP de chaque visiteur transmise à un tiers.
+ *
+ * Ici, tout tient dans ce fichier : les keyframes et le moteur sont écrits en
+ * ligne dans la page, sans requête supplémentaire.
+ *
+ * ## Le contrat public : l'attribut `animate`
+ *
+ * Une section s'animera parce qu'un attribut le dit, et il se pose depuis le
+ * builder — panneau « Attributs » — comme depuis un arbre versionné :
+ *
+ *     { "name": "section", "class": "c-hero",
+ *       "settings": { "_attributes": [ { "name": "animate", "value": "fade-up" } ] } }
+ *
+ * **Le nom de cet attribut ne change pas.** Il est employé par les pages des
+ * sites : le renommer les laisserait sans animation, sans un message d'erreur et
+ * sans qu'aucune capture le montre — un élément masqué à l'état initial et jamais
+ * révélé est un contenu perdu.
+ *
+ * Même raison pour le préfixe `bas-` des keyframes, la classe `.bas-cursor`, les
+ * variables `--bas-*` et l'objet `window.BAS` : ils sont neutres, ils sont déjà
+ * cités dans des pages et des scripts de site, et un renommage sans bénéfice
+ * casse ce qui fonctionne.
+ *
+ * ## Ce que l'extension garantit
+ *
+ * - `prefers-reduced-motion: reduce` coupe tout — le CSS neutralise, et le
+ *   moteur ne démarre même pas (critère WCAG 2.3.3).
+ * - Rien n'est enregistré, aucune option, aucune table : l'extension n'a pas
+ *   d'état.
+ * - Le moteur se relance sur `bricks/frontend/init`, donc dans une popup Bricks
+ *   ou après un chargement AJAX.
+ *
+ * ## Ce qu'elle ne garantit pas, et qu'il faut savoir avant d'animer
+ *
+ * Un élément portant `animate` est **masqué à l'état initial** (`opacity: 0`).
+ * Sans JavaScript, il ne s'affiche jamais. Ne jamais animer ce qui porte
+ * l'information principale d'une page sans avoir vérifié le repli, et employer
+ * `animate="no-hide"` quand le contenu doit rester lisible en toutes
+ * circonstances.
+ *
+ * @package Beely\Animations
  */
 
-if ( ! defined( 'ABSPATH' ) ) exit;
+declare( strict_types = 1 );
 
-class Bricks_Animation_System {
+namespace Beely\Animations;
 
-    public function __construct() {
-        add_action( 'wp_head',   [ $this, 'inject_css' ], 99 );
-        add_action( 'wp_footer', [ $this, 'inject_js'  ], 99 );
-    }
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
-    public function inject_css() { ?>
+final class Animations {
+
+	/**
+	 * Préfixe des keyframes, des classes utilitaires et des variables CSS.
+	 *
+	 * Volontairement neutre et volontairement stable : il apparaît dans du CSS
+	 * de site et dans des scripts de page. Voir l'en-tête du fichier.
+	 */
+	public const PREFIX = 'bas-';
+
+	public static function boot(): void {
+		add_action( 'wp_head', [ self::class, 'inject_css' ], 99 );
+		add_action( 'wp_footer', [ self::class, 'inject_js' ], 99 );
+	}
+
+	public static function inject_css(): void { ?>
 <style id="bas-styles">
 
 /* ============================================================
-   ÉTAT INITIAL — tout élément animé est invisible par défaut
-   sauf si animate="no-hide"
+   ÉTAT INITIAL — tout élément animé est invisible par défaut,
+   sauf animate="no-hide"
 ============================================================ */
 
 [animate]:not([animate="no-hide"]):not([animate=""]) {
     opacity: 0;
 }
 
-/* Déjà visible si pas de scroll (JS retire cet état) */
-[animate].bas-ready {
-    opacity: 1;
-}
-
 /* ============================================================
    KEYFRAMES
 ============================================================ */
 
-/* Fade */
-@keyframes bas-fade-in        { from { opacity:0 }                                                           to { opacity:1 } }
+/* Fondus */
+@keyframes bas-fade-in         { from { opacity:0 }                                                           to { opacity:1 } }
 @keyframes bas-fade-out        { from { opacity:1 }                                                           to { opacity:0 } }
 
-/* Fade + direction */
+/* Fondus directionnels */
 @keyframes bas-fade-up         { from { opacity:0; transform:translateY(var(--bas-dist,40px)) }               to { opacity:1; transform:translateY(0) } }
 @keyframes bas-fade-down       { from { opacity:0; transform:translateY(calc(var(--bas-dist,40px)*-1)) }      to { opacity:1; transform:translateY(0) } }
 @keyframes bas-fade-left       { from { opacity:0; transform:translateX(calc(var(--bas-dist,40px)*-1)) }      to { opacity:1; transform:translateX(0) } }
 @keyframes bas-fade-right      { from { opacity:0; transform:translateX(var(--bas-dist,40px)) }               to { opacity:1; transform:translateX(0) } }
 
-/* Slide */
+/* Glissements */
 @keyframes bas-slide-up        { from { transform:translateY(var(--bas-dist,40px)) }                          to { transform:translateY(0) } }
 @keyframes bas-slide-down      { from { transform:translateY(calc(var(--bas-dist,40px)*-1)) }                 to { transform:translateY(0) } }
 @keyframes bas-slide-left      { from { transform:translateX(calc(var(--bas-dist,40px)*-1)) }                 to { transform:translateX(0) } }
 @keyframes bas-slide-right     { from { transform:translateX(var(--bas-dist,40px)) }                          to { transform:translateX(0) } }
 
-/* Zoom */
+/* Échelles */
 @keyframes bas-zoom-in         { from { opacity:0; transform:scale(var(--bas-scale,0.85)) }                   to { opacity:1; transform:scale(1) } }
 @keyframes bas-zoom-out        { from { opacity:1; transform:scale(1) }                                       to { opacity:0; transform:scale(var(--bas-scale,0.85)) } }
 @keyframes bas-zoom-in-up      { from { opacity:0; transform:scale(var(--bas-scale,0.85)) translateY(var(--bas-dist,40px)) }   to { opacity:1; transform:scale(1) translateY(0) } }
@@ -61,32 +120,32 @@ class Bricks_Animation_System {
 @keyframes bas-scale-x         { from { transform:scaleX(0) }                                                 to { transform:scaleX(1) } }
 @keyframes bas-scale-y         { from { transform:scaleY(0) }                                                 to { transform:scaleY(1) } }
 
-/* Flip */
+/* Bascules */
 @keyframes bas-flip-x          { from { opacity:0; transform:perspective(600px) rotateX(90deg) }              to { opacity:1; transform:perspective(600px) rotateX(0deg) } }
 @keyframes bas-flip-y          { from { opacity:0; transform:perspective(600px) rotateY(90deg) }              to { opacity:1; transform:perspective(600px) rotateY(0deg) } }
 @keyframes bas-flip-x-reverse  { from { opacity:0; transform:perspective(600px) rotateX(-90deg) }             to { opacity:1; transform:perspective(600px) rotateX(0deg) } }
 @keyframes bas-flip-y-reverse  { from { opacity:0; transform:perspective(600px) rotateY(-90deg) }             to { opacity:1; transform:perspective(600px) rotateY(0deg) } }
 
-/* Rotate */
+/* Rotations */
 @keyframes bas-rotate-in       { from { opacity:0; transform:rotate(var(--bas-rotate,-15deg)) }               to { opacity:1; transform:rotate(0deg) } }
 @keyframes bas-rotate-in-up    { from { opacity:0; transform:rotate(var(--bas-rotate,-15deg)) translateY(var(--bas-dist,40px)) } to { opacity:1; transform:rotate(0deg) translateY(0) } }
-@keyframes bas-spin            { from { transform:rotate(0deg) }                                               to { transform:rotate(360deg) } }
-@keyframes bas-spin-reverse    { from { transform:rotate(0deg) }                                               to { transform:rotate(-360deg) } }
+@keyframes bas-spin            { from { transform:rotate(0deg) }                                              to { transform:rotate(360deg) } }
+@keyframes bas-spin-reverse    { from { transform:rotate(0deg) }                                              to { transform:rotate(-360deg) } }
 
-/* Blur */
+/* Flous */
 @keyframes bas-blur-in         { from { opacity:0; filter:blur(var(--bas-blur,10px)) }                        to { opacity:1; filter:blur(0) } }
 @keyframes bas-blur-in-up      { from { opacity:0; filter:blur(var(--bas-blur,10px)); transform:translateY(var(--bas-dist,30px)) } to { opacity:1; filter:blur(0); transform:translateY(0) } }
 @keyframes bas-blur-out        { from { opacity:1; filter:blur(0) }                                           to { opacity:0; filter:blur(var(--bas-blur,10px)) } }
 
-/* Clip / Reveal */
+/* Découpes */
 @keyframes bas-clip-top        { from { clip-path:inset(0 0 100% 0) }                                         to { clip-path:inset(0 0 0% 0) } }
 @keyframes bas-clip-bottom     { from { clip-path:inset(100% 0 0 0) }                                         to { clip-path:inset(0% 0 0 0) } }
 @keyframes bas-clip-left       { from { clip-path:inset(0 100% 0 0) }                                         to { clip-path:inset(0 0% 0 0) } }
 @keyframes bas-clip-right      { from { clip-path:inset(0 0 0 100%) }                                         to { clip-path:inset(0 0 0 0%) } }
-@keyframes bas-clip-center     { from { clip-path:inset(0 50%) }                                               to { clip-path:inset(0 0%) } }
+@keyframes bas-clip-center     { from { clip-path:inset(0 50%) }                                              to { clip-path:inset(0 0%) } }
 @keyframes bas-clip-circle     { from { clip-path:circle(0% at 50% 50%) }                                     to { clip-path:circle(150% at 50% 50%) } }
 
-/* Attention (loops) */
+/* Accents — en boucle par défaut */
 @keyframes bas-pulse           { 0%,100% { transform:scale(1) }       50% { transform:scale(1.06) } }
 @keyframes bas-pulse-soft      { 0%,100% { opacity:1 }                50% { opacity:0.5 } }
 @keyframes bas-bounce          { 0%,100% { transform:translateY(0);   animation-timing-function:cubic-bezier(.8,0,1,1) } 50% { transform:translateY(-28%); animation-timing-function:cubic-bezier(0,0,.2,1) } }
@@ -102,7 +161,7 @@ class Bricks_Animation_System {
 @keyframes bas-swing           { 0%,100% { transform:rotate(0deg) }   20% { transform:rotate(12deg) }    40% { transform:rotate(-8deg) }   60% { transform:rotate(4deg) }    80% { transform:rotate(-2deg) } }
 @keyframes bas-tada            { 0%,100% { transform:scale(1) rotate(0deg) }  10%,20% { transform:scale(.9) rotate(-3deg) }  30%,50%,70%,90% { transform:scale(1.1) rotate(3deg) }  40%,60%,80% { transform:scale(1.1) rotate(-3deg) } }
 
-/* Typewriter — géré en JS */
+/* Machine à écrire — le texte est géré en JS, le curseur en CSS */
 @keyframes bas-cursor-blink    { 0%,100% { opacity:1 } 50% { opacity:0 } }
 .bas-cursor::after {
     content: var(--bas-cursor,'|');
@@ -110,7 +169,9 @@ class Bricks_Animation_System {
 }
 
 /* ============================================================
-   ACCESSIBILITÉ
+   ACCESSIBILITÉ — WCAG 2.3.3
+   Le moteur ne démarre pas non plus : ce bloc est la ceinture,
+   la bretelle est dans le script.
 ============================================================ */
 @media (prefers-reduced-motion: reduce) {
     [animate], [parallax] {
@@ -124,9 +185,9 @@ class Bricks_Animation_System {
 }
 
 </style>
-    <?php }
+	<?php }
 
-    public function inject_js() { ?>
+	public static function inject_js(): void { ?>
 <script id="bas-script">
 (function () {
 'use strict';
@@ -177,7 +238,7 @@ const EASINGS = {
     'quart-in'    : 'cubic-bezier(0.895, 0.03, 0.685, 0.22)',
 };
 
-/* Animations dont opacity est déjà gérée dans le keyframe */
+/* Animations dont l'opacité est déjà tenue par le keyframe */
 const OPACITY_MANAGED = new Set([
     'fade-in','fade-out','fade-up','fade-down','fade-left','fade-right',
     'zoom-in','zoom-out','zoom-in-up','zoom-in-down','zoom-in-left','zoom-in-right',
@@ -193,7 +254,7 @@ const LOOP_BY_DEFAULT = new Set([
     'float','sway','flash','heartbeat','rubber-band','jello','breathe','swing','tada',
 ]);
 
-/* Animations pour les transform-origins spécifiques */
+/* Origines de transformation imposées par certaines animations */
 const ORIGINS = {
     'scale-x' : 'left center',
     'scale-y' : 'top center',
@@ -212,15 +273,19 @@ function parseMs(value) {
     value = value.trim();
     if (value.endsWith('ms')) return parseFloat(value);
     if (value.endsWith('s'))  return parseFloat(value) * 1000;
-    return parseFloat(value); // assume ms
+    return parseFloat(value); // ms par défaut
+}
+
+function easingFrom(raw) {
+    if (!raw) return DEFAULTS.easing;
+    return EASINGS[raw] || raw;
 }
 
 function parseOptions(el) {
     const animName  = attr(el, ANIMATTR);
     const duration  = parseMs(attr(el, 'duration'))  ?? DEFAULTS.duration;
     const delay     = parseMs(attr(el, 'delay'))     ?? DEFAULTS.delay;
-    const rawEase   = attr(el, 'easing') || attr(el, 'ease');
-    const easing    = rawEase ? (EASINGS[rawEase] || rawEase) : DEFAULTS.easing;
+    const easing    = easingFrom(attr(el, 'easing') || attr(el, 'ease'));
     const distance  = parseFloat(attr(el, 'distance') || DEFAULTS.distance);
     const scale     = parseFloat(attr(el, 'scale')    || DEFAULTS.scale);
     const rotate    = parseFloat(attr(el, 'rotate')   || DEFAULTS.rotate);
@@ -228,26 +293,25 @@ function parseOptions(el) {
     const threshold = parseFloat(attr(el, 'threshold') || DEFAULTS.threshold);
     const origin    = attr(el, 'origin') || ORIGINS[animName] || null;
     /*
-     * `scroll` est **actif par défaut** : une animation d'apparition attend d'être
-     * visible, c'est sa raison d'être. Seul `scroll="false"` la joue aussitôt.
+     * `scroll` est **actif par défaut** : une animation d'apparition attend
+     * d'être visible, c'est sa raison d'être. Seul `scroll="false"` la joue
+     * aussitôt.
      *
-     * L'écriture précédente rendait l'inverse. Sans attribut, `getAttribute` rend
-     * `null`, et la chaîne s'effondrait :
+     * L'écriture précédente rendait l'inverse. Sans attribut, `getAttribute`
+     * rend `null`, et la chaîne s'effondrait :
      *
      *     null === 'true'  → faux
      *     null === ''      → faux
      *     null !== null    → faux, et le && court-circuitait
      *
      * `scroll` valait donc `false` sur **tout** élément qui ne nommait pas le
-     * réglage, c'est-à-dire tous : aucun `IntersectionObserver` n'était posé, et la
-     * page entière jouait ses animations au chargement.
+     * réglage, c'est-à-dire tous : `initElement` prenait la branche
+     * « animer tout de suite », aucun `IntersectionObserver` n'était posé, et la
+     * page entière jouait ses animations au chargement — y compris ce que le
+     * visiteur n'avait pas encore atteint.
      *
-     * Symptôme à l'usage : on ne voit **jamais** une animation se jouer. Tout est
-     * terminé quand on arrive au bloc, et le rechargement rejoue le tout hors de
-     * l'écran. On croit que les animations ne marchent pas ; elles marchent trop tôt.
-     *
-     * Le compteur et la machine à écrire, dans ce même fichier, écrivaient déjà la
-     * bonne forme — c'est ce désaccord interne qui aurait dû alerter.
+     * Le compteur et la machine à écrire, dans le même fichier, écrivaient déjà
+     * la bonne forme : `attr(el, 'scroll') !== 'false'`.
      */
     const scroll    = attr(el, 'scroll') !== 'false';
     const replay    = attr(el, 'replay') === 'true'  || attr(el, 'replay') === '';
@@ -256,13 +320,13 @@ function parseOptions(el) {
     const direction = attr(el, 'direction') || DEFAULTS.direction;
     const stagger   = parseMs(attr(el, 'stagger')) ?? null;
 
-    // Iterations
+    // Itérations
     let iterations;
     if (loop === 'true' || loop === '')          iterations = Infinity;
     else if (loop === 'false')                   iterations = 1;
     else if (loop !== null && !isNaN(+loop))     iterations = parseFloat(loop);
     else if (LOOP_BY_DEFAULT.has(animName))      iterations = Infinity;
-    else                                          iterations = DEFAULTS.iterations;
+    else                                         iterations = DEFAULTS.iterations;
 
     return {
         animName, duration, delay, easing, distance, scale,
@@ -281,7 +345,7 @@ function applyAnimation(el, opts) {
 
     if (!animName || animName === 'no-hide') return;
 
-    // Variables CSS personnalisées
+    // Variables CSS lues par les keyframes
     el.style.setProperty('--bas-dist',   `${distance}px`);
     el.style.setProperty('--bas-scale',  scale);
     el.style.setProperty('--bas-rotate', `${rotate}deg`);
@@ -289,7 +353,7 @@ function applyAnimation(el, opts) {
 
     if (origin) el.style.transformOrigin = origin;
 
-    // Gérer opacity avant animation
+    // Rendre visible quand le keyframe ne s'en charge pas
     if (!OPACITY_MANAGED.has(animName)) {
         el.style.opacity = '1';
     }
@@ -304,10 +368,8 @@ function applyAnimation(el, opts) {
         direction,
     ].join(' ');
 
-    // Marquer comme animé
     el.dataset.basState = 'running';
 
-    // Callback de fin
     if (iterations !== Infinity) {
         el.addEventListener('animationend', () => {
             el.dataset.basState = 'done';
@@ -316,47 +378,57 @@ function applyAnimation(el, opts) {
 }
 
 function resetAnimation(el) {
-    el.style.animation    = '';
-    el.style.opacity      = '';
-    el.dataset.basState   = '';
-    // Forcer reflow
+    el.style.animation  = '';
+    el.style.opacity    = '';
+    el.dataset.basState = '';
+    // Forcer un reflow pour que la prochaine animation reparte de zéro
     void el.offsetWidth;
 }
 
 /* ============================================================
-   STAGGER ENFANTS
+   DÉCALAGE PROGRESSIF DES ENFANTS
 ============================================================ */
 
+/*
+ * Décalage progressif des enfants directs d'un conteneur.
+ *
+ * **Chaque enfant touché doit être initialisé ici, et cet appel n'est pas
+ * facultatif.** `init()` parcourt une NodeList rendue par `querySelectorAll` —
+ * une liste **statique**, construite avant que le premier `initElement` ne
+ * s'exécute. Les enfants qui reçoivent leur `animate` ci-dessous n'y sont donc
+ * pas : personne ne les observait, personne ne les animait, et la règle
+ * `[animate] { opacity: 0 }` posée par le même attribut les masquait pour de
+ * bon.
+ *
+ * Mesuré le 05/08/2026 sur une préproduction du parc : les grilles de cartes
+ * portaient le motif documenté — `animate="fade-up"` + `stagger="90ms"` — et
+ * leurs cartes ne réapparaissaient jamais. Le conteneur, lui, s'animait
+ * normalement ; c'est ce qui rend la panne difficile à lire, puisque la section
+ * entre bien et reste vide.
+ */
 function applyStagger(container, opts) {
     const { stagger } = opts;
     if (!stagger) return;
 
-    // Cherche les enfants directs qui ont eux-mêmes un attribut animate
-    // OU cible les enfants directs comme groupe
+    // Les enfants directs forment le groupe. Celui qui n'a pas son propre
+    // `animate` hérite de celui du conteneur.
     const children = Array.from(container.children);
     children.forEach((child, i) => {
         const childOpts = parseOptions(child);
-        // Si l'enfant n'a pas son propre attribut animate, appliquer celui du parent
-        if (!child.hasAttribute(ANIMATTR)) {
+        const herite = !child.hasAttribute(ANIMATTR);
+
+        if (herite) {
             child.setAttribute(ANIMATTR, opts.animName);
         }
+
         const extraDelay = stagger * i;
         child.setAttribute('delay', `${(childOpts.delay || opts.delay) + extraDelay}ms`);
 
         /*
-         * **Cet appel n'est pas facultatif.** `init()` parcourt une NodeList rendue
-         * par `querySelectorAll` — donc **statique**, construite avant le premier
-         * `initElement`. Les enfants qui reçoivent leur `animate` ci-dessus n'y sont
-         * pas : personne ne les observe, personne ne les anime, et la règle
-         * `[animate] { opacity: 0 }` posée par l'attribut qu'on vient de leur donner
-         * les masque **pour de bon**.
-         *
-         * La panne est difficile à lire parce que le conteneur, lui, s'anime
-         * normalement : la section entre, et reste vide.
-         *
-         * `initElement` est idempotent du point de vue de l'observer — `getObserver`
-         * met ses instances en cache, et `observe()` sur une cible déjà observée ne
-         * fait rien.
+         * Un enfant déjà initialisé l'a été avec son ancien `delay` : il faut
+         * le reprendre pour que le décalage compte. `initElement` est idempotent
+         * du point de vue de l'observer — `getObserver` met ses instances en
+         * cache et `observe()` sur une cible déjà observée ne fait rien.
          */
         child.dataset.basInit = 'true';
         initElement(child);
@@ -364,7 +436,7 @@ function applyStagger(container, opts) {
 }
 
 /* ============================================================
-   SCROLL (IntersectionObserver)
+   DÉFILEMENT (IntersectionObserver)
 ============================================================ */
 
 const observerCache = new Map();
@@ -396,45 +468,53 @@ function getObserver(threshold, rootMargin, replay) {
 }
 
 /* ============================================================
-   PARALLAX
+   PARALLAXE
 ============================================================ */
 
 const parallaxEls = [];
+let parallaxBound = false;
+let parallaxTicking = false;
 
 function initParallax() {
     document.querySelectorAll('[parallax]').forEach(el => {
-        const speed   = parseFloat(attr(el, 'parallax') || 0.2);
-        const axis    = attr(el, 'parallax-axis') || 'y';
-        const origin  = el.getBoundingClientRect().top + window.scrollY;
-        parallaxEls.push({ el, speed, axis, origin });
+        // Un élément déjà suivi ne se réenregistre pas : `BAS.init()` est
+        // rejoué après chaque chargement AJAX, et un doublon ferait calculer
+        // deux fois la même translation.
+        if (el.dataset.basParallax === 'true') return;
+        el.dataset.basParallax = 'true';
+
+        const speed = parseFloat(attr(el, 'parallax') || 0.2);
+        const axis  = attr(el, 'parallax-axis') || 'y';
+        parallaxEls.push({ el, speed, axis });
     });
 
-    if (!parallaxEls.length) return;
+    if (!parallaxEls.length || parallaxBound) return;
 
-    let ticking = false;
+    parallaxBound = true;
     window.addEventListener('scroll', () => {
-        if (!ticking) {
+        if (!parallaxTicking) {
+            parallaxTicking = true;
             requestAnimationFrame(updateParallax);
-            ticking = true;
         }
     }, { passive: true });
     updateParallax();
 }
 
 function updateParallax() {
+    // Le drapeau se relâche ici, et non dans l'écouteur : sans cela le premier
+    // défilement serait le seul pris en compte, et la parallaxe resterait figée.
+    parallaxTicking = false;
+
     const scrollY = window.scrollY;
     parallaxEls.forEach(({ el, speed, axis }) => {
-        const rect   = el.getBoundingClientRect();
-        const center = scrollY + window.innerHeight / 2;
+        const rect     = el.getBoundingClientRect();
         const elCenter = scrollY + rect.top + rect.height / 2;
-        const offset = (scrollY - (elCenter - window.innerHeight / 2)) * speed;
+        const offset   = (scrollY - (elCenter - window.innerHeight / 2)) * speed;
         el.style.transform = axis === 'x'
             ? `translateX(${offset}px)`
             : `translateY(${offset}px)`;
         el.style.willChange = 'transform';
     });
-    // reset ticking
-    parallaxEls._ticking = false;
 }
 
 /* ============================================================
@@ -491,14 +571,14 @@ function animateCounter(el) {
 }
 
 /* ============================================================
-   TYPEWRITER
+   MACHINE À ÉCRIRE
 ============================================================ */
 
 function initTypewriter(el) {
     if (el.dataset.basTypeDone === 'true') return;
 
     const text     = attr(el, 'typewriter') || el.innerText;
-    const speed    = parseFloat(attr(el, 'type-speed')   || 50);   // ms/char
+    const speed    = parseFloat(attr(el, 'type-speed')   || 50);   // ms par caractère
     const delayMs  = parseFloat(attr(el, 'delay')        || 0);
     const cursor   = attr(el, 'type-cursor') !== null ? attr(el, 'type-cursor') : '|';
     const loop     = attr(el, 'loop') === 'true';
@@ -538,14 +618,14 @@ function initTypewriter(el) {
 }
 
 /* ============================================================
-   HOVER
+   SURVOL
 ============================================================ */
 
 function initHover(el) {
     const animIn  = attr(el, 'hover');
     const animOut = attr(el, 'hover-out') || null;
     const dur     = parseMs(attr(el, 'duration')) ?? DEFAULTS.duration;
-    const ease    = EASINGS[attr(el,'easing') || attr(el,'ease')] || DEFAULTS.easing;
+    const ease    = easingFrom(attr(el, 'easing') || attr(el, 'ease'));
 
     el.addEventListener('mouseenter', () => {
         el.style.animation = `${PREFIX}${animIn} ${dur}ms ${ease} 1 both`;
@@ -561,18 +641,18 @@ function initHover(el) {
 }
 
 /* ============================================================
-   INIT ELEMENT
+   INITIALISATION D'UN ÉLÉMENT
 ============================================================ */
 
 function initElement(el) {
 
-    // HOVER
+    // SURVOL
     if (el.hasAttribute('hover')) {
         initHover(el);
         return;
     }
 
-    // TYPEWRITER
+    // MACHINE À ÉCRIRE
     if (el.hasAttribute('typewriter')) {
         const useScroll = attr(el, 'scroll') !== 'false';
         if (useScroll) {
@@ -596,7 +676,7 @@ function initElement(el) {
         return;
     }
 
-    // COUNTER
+    // COMPTEUR
     if (el.hasAttribute('counter')) {
         const useScroll = attr(el, 'scroll') !== 'false';
         if (useScroll) {
@@ -619,7 +699,7 @@ function initElement(el) {
         return;
     }
 
-    // ANIMATE
+    // ANIMATION D'APPARITION
     if (el.hasAttribute(ANIMATTR)) {
         const opts = parseOptions(el);
 
@@ -628,17 +708,16 @@ function initElement(el) {
             return;
         }
 
-        // Stagger enfants
+        // Décalage progressif des enfants
         if (opts.stagger !== null) {
             applyStagger(el, opts);
-            // Continuer pour animer le container lui-même si nécessaire
+            // On continue : le conteneur lui-même peut être animé.
         }
 
-        // Sauvegarder opts pour l'observer
+        // Les options voyagent avec l'élément, l'observer les relit
         el.dataset.basOpts = JSON.stringify(opts);
 
         if (opts.scroll !== false) {
-            // Avec scroll
             const observer = getObserver(
                 opts.threshold,
                 DEFAULTS.rootMargin,
@@ -646,20 +725,18 @@ function initElement(el) {
             );
             observer.observe(el);
         } else {
-            // Immédiat
             applyAnimation(el, opts);
         }
     }
 }
 
 /* ============================================================
-   INIT GLOBAL
+   INITIALISATION GLOBALE
 ============================================================ */
 
 function init(root = document) {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    // Tous les éléments avec animate, counter, typewriter, hover, parallax
     root.querySelectorAll(`
         [${ANIMATTR}],
         [counter],
@@ -667,7 +744,7 @@ function init(root = document) {
         [hover],
         [parallax]
     `).forEach(el => {
-        // Éviter double init
+        // Éviter une double initialisation
         if (el.dataset.basInit === 'true') return;
         el.dataset.basInit = 'true';
         initElement(el);
@@ -682,8 +759,8 @@ function init(root = document) {
 
 window.BAS = {
     /**
-     * Réinitialiser (après AJAX, Bricks popup, etc.)
-     * @param {Element|Document} root - Scope optionnel
+     * Réinitialiser après un chargement AJAX, une popup Bricks, etc.
+     * @param {Element|Document} root - portée facultative
      */
     init(root = document) {
         root.querySelectorAll('[data-bas-init]').forEach(el => {
@@ -693,7 +770,7 @@ window.BAS = {
     },
 
     /**
-     * Déclencher manuellement une animation
+     * Déclencher une animation à la main.
      * @param {string|Element} target
      */
     play(target) {
@@ -705,7 +782,7 @@ window.BAS = {
     },
 
     /**
-     * Réinitialiser une animation
+     * Remettre un élément à son état initial.
      * @param {string|Element} target
      */
     reset(target) {
@@ -714,7 +791,7 @@ window.BAS = {
     },
 
     /**
-     * Lancer un compteur
+     * Relancer un compteur.
      * @param {string|Element} target
      */
     counter(target) {
@@ -723,7 +800,7 @@ window.BAS = {
     },
 
     /**
-     * Lancer un typewriter
+     * Relancer une machine à écrire.
      * @param {string|Element} target
      */
     typewriter(target) {
@@ -742,12 +819,12 @@ if (document.readyState === 'loading') {
     init();
 }
 
-// Bricks Builder front-end
+// Rendu front de Bricks : popups, contenus chargés en AJAX
 document.addEventListener('bricks/frontend/init', () => BAS.init());
 
 })();
 </script>
-    <?php }
+	<?php }
 }
 
-new Bricks_Animation_System();
+Animations::boot();
