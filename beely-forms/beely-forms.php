@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Beely — formulaires
  * Description: Réception, validation et relais des formulaires vers leurs webhooks — le site n'enregistre et ne notifie rien. Versant serveur du moteur assets/js/form-engine.js, en remplacement de l'élément « formulaire » de Bricks.
- * Version:     3.3.0
+ * Version:     3.4.0
  * Author:      Beely
  *
  * Pourquoi ne pas utiliser l'élément de Bricks : un seul écran, une validation
@@ -2769,7 +2769,28 @@ function relayer( string $name, array $definition, array $values, string $page, 
 		 * subsiste dans le motif, qui part au journal du serveur : elle change ce
 		 * qu'il faut réparer, pas ce qu'il faut répondre.
 		 */
-		$declare = isset( $definition['webhook'] ) || isset( $definition['webhooks'] );
+		$declare    = isset( $definition['webhook'] ) || isset( $definition['webhooks'] );
+		$manquantes = references_non_resolues( $definition );
+
+		if ( $manquantes ) {
+			/*
+			 * Le cas le plus fréquent d'un site fraîchement mis en ligne, et le
+			 * seul dont le motif dise le geste exact : la définition nomme bien
+			 * sa destination, mais l'installation ne la connaît pas.
+			 *
+			 * Sans cette branche, le journal disait « aucune adresse valable » —
+			 * ce qui envoyait relire un fichier correct au lieu d'ouvrir
+			 * `wp-config.php`.
+			 */
+			return new \WP_Error(
+				'beely_form_webhook',
+				sprintf(
+					'Relais référencé mais introuvable sur cette installation : %s. Poser la constante dans wp-config.php (wp config set %s "https://…" --type=constant).',
+					implode( ', ', $manquantes ),
+					$manquantes[0]
+				)
+			);
+		}
 
 		return new \WP_Error(
 			'beely_form_webhook',
