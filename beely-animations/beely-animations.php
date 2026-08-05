@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Bricks Animation System (Attributes)
  * Description: Système d'animation complet piloté par attributs HTML pour Bricks Builder
- * Version: 2.0.0
+ * Version: 2.1.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -227,7 +227,29 @@ function parseOptions(el) {
     const blur      = parseFloat(attr(el, 'blur')     || DEFAULTS.blur);
     const threshold = parseFloat(attr(el, 'threshold') || DEFAULTS.threshold);
     const origin    = attr(el, 'origin') || ORIGINS[animName] || null;
-    const scroll    = attr(el, 'scroll') === 'true' || attr(el, 'scroll') === '' || attr(el, 'scroll') !== null && attr(el,'scroll') !== 'false';
+    /*
+     * `scroll` est **actif par défaut** : une animation d'apparition attend d'être
+     * visible, c'est sa raison d'être. Seul `scroll="false"` la joue aussitôt.
+     *
+     * L'écriture précédente rendait l'inverse. Sans attribut, `getAttribute` rend
+     * `null`, et la chaîne s'effondrait :
+     *
+     *     null === 'true'  → faux
+     *     null === ''      → faux
+     *     null !== null    → faux, et le && court-circuitait
+     *
+     * `scroll` valait donc `false` sur **tout** élément qui ne nommait pas le
+     * réglage, c'est-à-dire tous : aucun `IntersectionObserver` n'était posé, et la
+     * page entière jouait ses animations au chargement.
+     *
+     * Symptôme à l'usage : on ne voit **jamais** une animation se jouer. Tout est
+     * terminé quand on arrive au bloc, et le rechargement rejoue le tout hors de
+     * l'écran. On croit que les animations ne marchent pas ; elles marchent trop tôt.
+     *
+     * Le compteur et la machine à écrire, dans ce même fichier, écrivaient déjà la
+     * bonne forme — c'est ce désaccord interne qui aurait dû alerter.
+     */
+    const scroll    = attr(el, 'scroll') !== 'false';
     const replay    = attr(el, 'replay') === 'true'  || attr(el, 'replay') === '';
     const loop      = attr(el, 'loop');   // 'true' | 'false' | nombre | null
     const fill      = attr(el, 'fill')   || DEFAULTS.fill;
@@ -320,6 +342,24 @@ function applyStagger(container, opts) {
         }
         const extraDelay = stagger * i;
         child.setAttribute('delay', `${(childOpts.delay || opts.delay) + extraDelay}ms`);
+
+        /*
+         * **Cet appel n'est pas facultatif.** `init()` parcourt une NodeList rendue
+         * par `querySelectorAll` — donc **statique**, construite avant le premier
+         * `initElement`. Les enfants qui reçoivent leur `animate` ci-dessus n'y sont
+         * pas : personne ne les observe, personne ne les anime, et la règle
+         * `[animate] { opacity: 0 }` posée par l'attribut qu'on vient de leur donner
+         * les masque **pour de bon**.
+         *
+         * La panne est difficile à lire parce que le conteneur, lui, s'anime
+         * normalement : la section entre, et reste vide.
+         *
+         * `initElement` est idempotent du point de vue de l'observer — `getObserver`
+         * met ses instances en cache, et `observe()` sur une cible déjà observée ne
+         * fait rien.
+         */
+        child.dataset.basInit = 'true';
+        initElement(child);
     });
 }
 
