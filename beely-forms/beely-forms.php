@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Beely — formulaires
  * Description: Réception, validation et relais des formulaires vers leurs webhooks — le site n'enregistre et ne notifie rien. Versant serveur du moteur assets/js/form-engine.js, en remplacement de l'élément « formulaire » de Bricks.
- * Version:     3.4.0
+ * Version:     3.4.1
  * Author:      Beely
  *
  * Pourquoi ne pas utiliser l'élément de Bricks : un seul écran, une validation
@@ -1761,7 +1761,21 @@ function repli_html( string $name ): string {
 		$fichiers ? ' enctype="multipart/form-data"' : '',
 		$corps,
 		esc_attr( $name ),
-		wp_nonce_field( action_nonce( $name ), '_beely_nonce', false, false )
+		/*
+		 * Le champ est écrit à la main, et non par `wp_nonce_field`.
+		 *
+		 * Celle-ci pose toujours `id` = `name`. Une page qui porte deux
+		 * formulaires — une page de contact en a souvent un court et un long —
+		 * servait donc deux fois `id="_beely_nonce"`, et trois avec le repli
+		 * sans JavaScript. Un identifiant répété est invalide, et un lecteur
+		 * d'écran comme un script ne trouvent que le premier.
+		 *
+		 * Un champ caché n'a aucun besoin d'identifiant : on ne le pose pas.
+		 */
+		sprintf(
+			'<input type="hidden" name="_beely_nonce" value="%s">',
+			esc_attr( wp_create_nonce( action_nonce( $name ) ) )
+		)
 	);
 }
 
