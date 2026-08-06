@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Beely — informations société
  * Description: Coordonnées, mentions légales et traceurs déclarés en un seul endroit. Alimente le pied de page, les pages légales, les données structurées et le bandeau de cookies.
- * Version:     2.0.0
+ * Version:     2.1.0
  * Author:      Beely
  *
  * Le principe : **une information, un endroit**. Le numéro de téléphone est
@@ -79,6 +79,16 @@ const GROUPES = [
 			'societe_instagram'    => [ 'label' => 'Instagram', 'type' => 'url' ],
 			'societe_facebook'     => [ 'label' => 'Facebook', 'type' => 'url' ],
 			'societe_youtube'      => [ 'label' => 'YouTube', 'type' => 'url' ],
+		],
+	],
+	'environnement' => [
+		'titre'  => 'Environnement',
+		'champs' => [
+			'societe_url_production' => [
+				'label' => 'Adresse du site en production',
+				'type'  => 'url',
+				'aide'  => 'Employée par les pages d’atelier /plan pour le bouton « prod ↗ ». Laissée vide, le bouton ne s’affiche pas — plutôt qu’une adresse inventée.',
+			],
 		],
 	],
 ];
@@ -485,6 +495,51 @@ add_action(
 				);
 			}
 		}
+
+		/* --- L'environnement se montre, il ne s'édite pas --- */
+
+		add_settings_field(
+			'beely_environnement_type',
+			__( 'Environnement', 'beely' ),
+			static function (): void {
+				$type = defined( 'WP_ENVIRONMENT_TYPE' ) && is_scalar( WP_ENVIRONMENT_TYPE )
+					? (string) WP_ENVIRONMENT_TYPE
+					: '';
+
+				$prod = 'production' === $type;
+
+				printf(
+					'<p><strong style="font-size:14px">%s</strong></p>',
+					esc_html( '' !== $type ? $type : __( 'non déclaré — deviné d’après le domaine', 'beely' ) )
+				);
+
+				printf(
+					'<p class="description">%s</p>',
+					esc_html( $prod
+						? __( 'Ce site est public : il est indexable, et ses pages d’atelier /plan ne sont pas servies.', 'beely' )
+						: __( 'Ce site n’est pas public : il n’est pas indexé, et ses pages d’atelier /plan sont servies.', 'beely' ) )
+				);
+
+				/*
+				 * **Cette valeur ne s'édite pas ici, et c'est voulu.**
+				 *
+				 * C'est une constante de `wp-config.php`, lue au démarrage avant
+				 * la base de données. C'est précisément ce qui la rend digne de
+				 * confiance : elle décide de l'indexation du site, et personne
+				 * qui entrerait dans WordPress ne peut la changer. Une valeur en
+				 * base ne tiendrait pas cette promesse — un compte compromis, ou
+				 * une fausse manœuvre dans cet écran, suffirait à faire indexer
+				 * une préproduction.
+				 */
+				printf(
+					'<p class="description">%s<br><code>wp config set WP_ENVIRONMENT_TYPE %s --type=constant</code></p>',
+					esc_html__( 'Elle vit dans wp-config.php, hors de portée de cet écran — c’est ce qui la rend fiable. Pour la changer :', 'beely' ),
+					esc_html( $prod ? 'staging' : 'production' )
+				);
+			},
+			'beely-societe',
+			'beely_environnement'
+		);
 
 		/* --- Traceurs --- */
 
