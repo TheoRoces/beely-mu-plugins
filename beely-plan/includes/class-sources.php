@@ -32,9 +32,20 @@ final class Liens {
 		 * et tant qu'elle ne l'est pas les boutons « prod ↗ » ne s'affichent
 		 * pas — plutôt qu'un lien vers une adresse inventée.
 		 */
-		$url = defined( 'BEELY_URL_PRODUCTION' ) && is_string( BEELY_URL_PRODUCTION )
-			? BEELY_URL_PRODUCTION
-			: '';
+		/*
+		 * L'option d'abord, la constante ensuite.
+		 *
+		 * L'écran « Société » est l'endroit où le client la saisit, et c'est la
+		 * réponse à « où est-ce que je change ça ? ». La constante reste pour un
+		 * site qui n'a pas ce module — elle ne disparaît pas, elle passe second.
+		 */
+		$url = (string) get_option( 'societe_url_production', '' );
+
+		if ( '' === $url ) {
+			$url = defined( 'BEELY_URL_PRODUCTION' ) && is_string( BEELY_URL_PRODUCTION )
+				? BEELY_URL_PRODUCTION
+				: '';
+		}
 
 		$url = (string) apply_filters( 'beely/plan/url_production', $url );
 

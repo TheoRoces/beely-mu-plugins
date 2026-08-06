@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Beely — Plan
  * Description: Les pages d'atelier « /plan » : plan du site, formulaires, charte, composants. Préproduction seulement.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Author:      Beely
  *
  * Un site en préproduction se relit à plusieurs, et rarement par son auteur. Le
