@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Beely — redirections
  * Description: Redirections 301 depuis les anciennes URL d'un site refondu, lues dans un fichier versionné du thème. Remplace Redirection et consorts.
- * Version:     1.3.0
+ * Version:     1.3.1
  * Author:      Beely
  *
  * Une refonte casse les adresses. Sans redirections, chaque lien entrant — un
@@ -48,7 +48,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const VERSION = '1.3.0';
+const VERSION = '1.3.1';
 
 /**
  * Statuts que l'on accepte de renvoyer.
