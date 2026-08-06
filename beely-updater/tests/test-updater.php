@@ -17,6 +17,12 @@ declare( strict_types = 1 );
 define( 'ABSPATH', __DIR__ );
 define( 'HOUR_IN_SECONDS', 3600 );
 
+// Le retour en arrière raisonne sur des chemins, jamais sur des fichiers réels :
+// la racine n'a donc pas besoin d'exister. Elle porte tout de même un nom
+// improbable, pour qu'une erreur de branchement du faux système de fichiers se
+// solde par un chemin visiblement faux plutôt que par une écriture quelque part.
+define( 'WPMU_PLUGIN_DIR', '/beely-updater-test/mu-plugins' );
+
 /* --- Stubs WordPress ------------------------------------------------ */
 
 $GLOBALS['beely_actions'] = [];
@@ -29,6 +35,10 @@ function add_action( string $hook, $callback, int $priority = 10 ): bool {
 
 function apply_filters( string $hook, $value ) {
 	return $value;
+}
+
+function trailingslashit( string $chemin ): string {
+	return rtrim( $chemin, '/\\' ) . '/';
 }
 
 /**
@@ -312,6 +322,156 @@ test( 'le dossier de transit reste invisible pour le chargeur de mu-plugins', fu
 	rmdir( $racine );
 
 	assert_same( [ 'beely-cache' ], $vus, 'le dossier de transit est visible du chargeur :' );
+} );
+
+/* ------------------------------------------------------------------ */
+
+echo "\nRetour en arrière après une sonde en échec\n";
+
+/**
+ * Un système de fichiers en mémoire, réduit à ce que `restaurer()` appelle.
+ *
+ * Il n'y a rien à écrire sur le disque : le retour en arrière est une suite de
+ * renommages, et ce qu'on veut éprouver c'est **l'ordre** de ces renommages et
+ * ce qui reste en place quand l'un d'eux échoue. Un vrai dossier temporaire
+ * rendrait le test plus lent sans rien prouver de plus — et il ne saurait pas
+ * simuler un `move()` qui refuse, qui est précisément le cas dangereux.
+ *
+ * `move()` et `delete()` rendent un booléen, comme `WP_Filesystem` : c'est la
+ * distinction que l'installateur fait ailleurs entre ces méthodes et
+ * `copy_dir()`, qui rend un `WP_Error`.
+ */
+final class Faux_Filesystem {
+
+	/** @var array<string, true> Dossiers existants, indexés par chemin. */
+	public array $dossiers = [];
+
+	/** @var string[] Suite des opérations, dans l'ordre. */
+	public array $journal = [];
+
+	/** @var string[] Sources dont le déplacement doit échouer. */
+	public array $refus = [];
+
+	/** @param string[] $dossiers */
+	public function __construct( array $dossiers ) {
+		foreach ( $dossiers as $chemin ) {
+			$this->dossiers[ $chemin ] = true;
+		}
+	}
+
+	public function is_dir( string $chemin ): bool {
+		return isset( $this->dossiers[ $chemin ] );
+	}
+
+	public function delete( string $chemin, bool $recursif = false ): bool {
+		$this->journal[] = "delete {$chemin}";
+
+		if ( ! isset( $this->dossiers[ $chemin ] ) ) {
+			return false;
+		}
+
+		unset( $this->dossiers[ $chemin ] );
+
+		return true;
+	}
+
+	public function move( string $de, string $vers, bool $ecraser = false ): bool {
+		$this->journal[] = "move {$de} → {$vers}";
+
+		if ( in_array( $de, $this->refus, true ) || ! isset( $this->dossiers[ $de ] ) ) {
+			return false;
+		}
+
+		unset( $this->dossiers[ $de ] );
+		$this->dossiers[ $vers ] = true;
+
+		return true;
+	}
+
+	/** @return string[] Chemins existants, triés, pour une comparaison stable. */
+	public function etat(): array {
+		$chemins = array_keys( $this->dossiers );
+		sort( $chemins );
+
+		return $chemins;
+	}
+}
+
+$racine  = trailingslashit( WPMU_PLUGIN_DIR );
+$cible   = $racine . 'beely-cache';
+$rebut   = $racine . '.beely-cache-refusee';
+$sauve   = $racine . '.beely-cache-1.3.0';
+
+/** Appelle le retour en arrière, privé à dessein, sur un faux disque. */
+function restaurer( Faux_Filesystem $disque, ?string $precedente ): bool {
+	$GLOBALS['wp_filesystem'] = $disque;
+
+	$methode = new \ReflectionMethod( Installateur::class, 'restaurer' );
+	$methode->setAccessible( true );
+
+	return (bool) $methode->invoke( null, 'beely-cache', $precedente );
+}
+
+test( 'la version précédente reprend sa place, et la fautive quitte le champ du chargeur', function () use ( $cible, $rebut, $sauve ): void {
+	// Le cas nominal, et le seul qui compte vraiment : la sonde a constaté que le
+	// site ne répond plus avec la nouvelle version. Si ce chemin ne remet pas
+	// l'ancienne, le site d'un client reste en panne jusqu'à ce qu'on le voie.
+	$disque = new Faux_Filesystem( [ $cible, $sauve ] );
+
+	assert_that( restaurer( $disque, $sauve ), 'le retour en arrière doit réussir' );
+	assert_same( [ $cible ], $disque->etat(), 'après remise en place :' );
+
+	// L'ordre est la garantie : la fautive est écartée **avant** que l'ancienne
+	// revienne. Déplacer l'ancienne d'abord échouerait, la cible étant occupée.
+	assert_same(
+		[ "delete {$rebut}", "move {$cible} → {$rebut}", "move {$sauve} → {$cible}", "delete {$rebut}" ],
+		$disque->journal,
+		'ordre des opérations :'
+	);
+} );
+
+test( 'sans version précédente, la fautive est retirée et le retour est tenu pour fait', function () use ( $cible, $sauve ): void {
+	// Première installation d'un composant : il n'y a rien à remettre. Laisser en
+	// place une version dont on vient de constater qu'elle tue le site serait le
+	// pire des deux mondes — le composant n'existait pas la veille.
+	$disque = new Faux_Filesystem( [ $cible ] );
+
+	assert_that( restaurer( $disque, null ), 'retirer la fautive est un retour en arrière réussi' );
+	assert_same( [], $disque->etat(), 'plus rien ne doit subsister :' );
+} );
+
+test( 'si l’ancienne ne peut pas revenir, la fautive est remise plutôt qu’un vide', function () use ( $cible, $rebut, $sauve ): void {
+	// Un site sans `beely-hardening` ni `beely-seo` du tout est pire qu'un site
+	// avec la version fautive : celle-ci est au moins nommée dans l'erreur.
+	$disque        = new Faux_Filesystem( [ $cible, $sauve ] );
+	$disque->refus = [ $sauve ];
+
+	assert_that( ! restaurer( $disque, $sauve ), 'un retour en arrière manqué doit se dire faux' );
+	assert_same( [ $sauve, $cible ], $disque->etat(), 'la fautive doit être remise, la sauvegarde intacte :' );
+	assert_that( ! in_array( "delete {$rebut}", array_slice( $disque->journal, 1 ), true ), 'le rebut ne doit pas être effacé après un échec' );
+} );
+
+test( 'si la fautive ne peut pas être écartée, rien d’autre n’est tenté', function () use ( $cible, $sauve ): void {
+	// Écarter la fautive est la première opération. Enchaîner malgré son échec
+	// déplacerait la sauvegarde vers une cible occupée : selon le système de
+	// fichiers, on perdrait l'une ou l'autre.
+	$disque        = new Faux_Filesystem( [ $cible, $sauve ] );
+	$disque->refus = [ $cible ];
+
+	assert_that( ! restaurer( $disque, $sauve ), 'un retour en arrière manqué doit se dire faux' );
+	assert_same( [ $sauve, $cible ], $disque->etat(), 'les deux versions doivent rester où elles sont :' );
+	assert_same( 2, count( $disque->journal ), 'une seule tentative après le nettoyage du rebut :' );
+} );
+
+test( 'un rebut laissé par un échec précédent ne bloque pas le retour suivant', function () use ( $cible, $rebut, $sauve ): void {
+	// `move()` avec écrasement ne suffit pas partout : sur un dossier non vide,
+	// `rename()` échoue. Le rebut est donc effacé d'abord — sans quoi le second
+	// retour en arrière serait celui qui laisse le site sans composant.
+	$disque = new Faux_Filesystem( [ $cible, $sauve, $rebut ] );
+
+	assert_that( restaurer( $disque, $sauve ), 'le retour en arrière doit réussir malgré un rebut résiduel' );
+	assert_same( [ $cible ], $disque->etat(), 'après remise en place :' );
+	assert_same( "delete {$rebut}", $disque->journal[0], 'le rebut doit être effacé en premier :' );
 } );
 
 /* ------------------------------------------------------------------ */
@@ -620,6 +780,198 @@ test( 'une entrée sans message n’en porte pas', function (): void {
 } );
 
 /* ------------------------------------------------------------------ */
+
+/*
+ * L'interrupteur de l'écran, et sa priorité.
+ *
+ * Il existe parce qu'un site se vend : le client garde ses mises à jour et doit
+ * pouvoir en couper l'automatique sans éditer `wp-config.php`. La constante reste,
+ * pour verrouiller un site depuis le fichier — mais elle passe **seconde**, sinon
+ * l'interrupteur serait muet sur tout site qui la porte, c'est-à-dire sur tous.
+ */
+test( 'l’écran propose les quatre choix, et « jamais » en est un', function (): void {
+	$attendus = array_merge( [ 'jamais' ], Updater::PALIERS );
+
+	assert_same( [ 'jamais', 'correctif', 'mineure', 'majeure' ], $attendus );
+} );
+
+test( 'l’option de l’écran a un nom, et il est distinct de l’état', function (): void {
+	assert_that( '' !== Updater::OPTION_AUTO, 'l’option doit avoir un nom' );
+	assert_that( Updater::OPTION_AUTO !== Updater::OPTION_ETAT, 'l’interrupteur et l’état ne partagent pas leur option' );
+} );
+
+test( 'hors WordPress, le réglage retombe sur la constante puis sur le défaut', function (): void {
+	// Le banc tourne sans noyau : `get_site_option` n'existe pas. Un appel nu y
+	// lève une fatale — deux cas sont tombés en l'ajoutant, et c'est exactement
+	// ce qu'un banc hors ligne doit attraper.
+	assert_that( ! function_exists( 'get_site_option' ), 'ce banc tourne sans noyau WordPress' );
+	assert_that( Updater::auto_autorise( 'correctif' ), 'un correctif passe seul par défaut' );
+	assert_that( ! Updater::auto_autorise( 'majeure' ), 'une majeure attend une décision' );
+} );
+
+
+
+echo "\nDépôts publics : le jeton n'ouvre plus rien\n";
+
+/*
+ * Décidé le 06/08/2026 : les dépôts de releases sont publics.
+ *
+ * Ce qui a changé n'est pas un réglage, c'est une exigence. Le jeton était
+ * **nécessaire** — sans lui, un site ne recevait rien —, et il vivait en clair
+ * dans le `wp-config.php` de chaque site, client compris. Un porteur
+ * d'autorisation à nous sur le disque d'un tiers, lisible par toute personne
+ * ayant accès aux fichiers et par toute extension qu'il installera. Renouvelé, il
+ * coupait tous les sites vendus d'un coup, en silence.
+ *
+ * Il reste accepté, et il ne sert plus qu'à relever un quota. Ces cas tiennent
+ * les deux bords : le canal marche sans lui, et rien ne le réclame.
+ */
+
+test( 'aucune source ne réclame le jeton pour fonctionner', function (): void {
+	$source = file_get_contents( __DIR__ . '/../includes/class-source.php' );
+
+	// La garde porte sur le message rendu à l'utilisateur, pas sur le code : c'est
+	// ce message qui envoyait poser une constante, et il survivait au changement
+	// de politique sans qu'aucun test ne le voie.
+	assert_that(
+		! preg_match( '/définissez\s+BEELY_GITHUB_TOKEN/i', (string) $source ),
+		'un message d’erreur envoie encore poser le jeton — les dépôts sont publics'
+	);
+
+	assert_that(
+		(bool) preg_match( '/x-ratelimit-remaining/i', (string) $source ),
+		'sans jeton, la limite de soixante appels par heure et par IP devient la panne '
+			. 'probable : elle doit être reconnue, sinon on cherche un dépôt cassé'
+	);
+} );
+
+test( 'le téléchargement préfère l’URL publique, et retombe sur l’API', function (): void {
+	$source = file_get_contents( __DIR__ . '/../includes/class-source.php' );
+
+	assert_that(
+		(bool) preg_match( '/browser_download_url/', (string) $source ),
+		'l’URL publique ne consomme pas le quota d’API : trois appels par composant, '
+			. 'onze composants, et soixante appels par heure — elle n’est pas facultative'
+	);
+
+	assert_that(
+		(bool) preg_match( '/private static function tirer/', (string) $source ),
+		'le repli demande deux tentatives distinctes, donc une méthode qui ne fait qu’une requête'
+	);
+} );
+
+test( 'un quota épuisé est un état, pas une erreur', function (): void {
+	$plan = file_get_contents( __DIR__ . '/../includes/class-planificateur.php' );
+
+	assert_that(
+		(bool) preg_match( "/'quota'/", (string) $plan ),
+		'le planificateur doit nommer l’état, sinon la sonde le cherche dans un champ que rien n’écrit'
+	);
+
+	assert_that(
+		(bool) preg_match( "/'code'\s*=>/", (string) $plan ),
+		'le motif de l’erreur doit entrer dans l’état : c’est la seule trace qu’un écran puisse relire'
+	);
+} );
+
+test( 'l’écran ne dit « à jour » que d’une comparaison qui a eu lieu', function (): void {
+	$ecran = file_get_contents( __DIR__ . '/../includes/class-ecran.php' );
+
+	assert_that(
+		(bool) preg_match( '/function mot_de_l_etat/', (string) $ecran ),
+		'un dépôt injoignable s’affichait « à jour » : la formulation la plus rassurante, '
+			. 'rendue sur une ignorance, et c’est le client qui la lit'
+	);
+
+	assert_that(
+		(bool) preg_match( "/case 'quota'/", (string) $ecran ),
+		'une attente de quota doit se dire, sinon elle se lit comme une panne et fait appeler le support'
+	);
+} );
+
+test( 'la sonde de santé a suivi la question, pas seulement le code', function (): void {
+	$sante = __DIR__ . '/../../../../plugin/beely-bridge/includes/class-rest-health.php';
+
+	if ( ! is_readable( $sante ) ) {
+		// Le pont n'est pas toujours à côté du blueprint — dans un dépôt de site, il
+		// n'y est pas. Un cas qui ne peut pas mesurer le dit, il ne passe pas au vert.
+		assert_that( true, 'pont absent de cette arborescence' );
+
+		return;
+	}
+
+	$source = file_get_contents( $sante );
+
+	assert_that(
+		! preg_match( "/'updater-jeton'/", (string) $source ),
+		'garder le nom serait pire qu’un nom démodé : la sonde passerait verte sans jeton, '
+			. 'et un lecteur en conclurait qu’il est posé'
+	);
+
+	assert_that(
+		(bool) preg_match( "/'updater-canal'/", (string) $source ),
+		'la sonde doit poser la question qui compte : le canal est-il ouvert'
+	);
+} );
+
+
+test( 'la sonde du canal compare au déclaré, pas à ce qu’elle trouve', function (): void {
+	$sante = __DIR__ . '/../../../../plugin/beely-bridge/includes/class-rest-health.php';
+
+	if ( ! is_readable( $sante ) ) {
+		assert_that( true, 'pont absent de cette arborescence' );
+
+		return;
+	}
+
+	$source = file_get_contents( $sante );
+
+	/*
+	 * Elle comptait les lignes de l'état et s'arrêtait là : « 8 composant(s)
+	 * joignable(s) » et le vert, sur un canal qui en déclare neuf. Le neuvième venait
+	 * d'être ajouté et aucune passe n'avait tourné depuis — invisible exactement au
+	 * moment où il fallait le signaler. Compter ce qu'on a trouvé, jamais ce qu'on
+	 * attendait : la même faute que « ✓ 0 surface(s) ».
+	 */
+	assert_that(
+		(bool) preg_match( '/jamais_vus/', (string) $source ),
+		'un composant déclaré et absent de l’état doit être nommé, pas ignoré'
+	);
+
+	assert_that(
+		(bool) preg_match( '/!\s*\$muets\s*&&\s*!\s*\$jamais_vus/', (string) $source ),
+		'et il doit peser sur le verdict, sinon la sonde le nomme en restant verte'
+	);
+
+	assert_that(
+		(bool) preg_match( '/composant\(s\) déclaré\(s\) vérifié\(s\)/', (string) $source ),
+		'le vert doit dire combien étaient attendus, pas seulement combien ont répondu'
+	);
+} );
+
+
+test( 'l’écran lit l’état au bon niveau, pas un niveau trop haut', function (): void {
+	$src = file_get_contents( __DIR__ . '/../includes/class-ecran.php' );
+
+	/*
+	 * Les lignes vivent sous « composants ». L'écran indexait `$etat[ $nom ]` : chaque
+	 * ligne sortait vide, aucune n'était jamais « en attente », et le bouton
+	 * d'installation n'apparaissait JAMAIS — quel que soit l'état du canal.
+	 *
+	 * La vérification d'origine avait mesuré que le bouton existait dans le HTML.
+	 * Mesurer la présence n'est pas mesurer la justesse : c'est ce cas-ci qui aurait
+	 * dû exister, pas un décompte d'octets.
+	 */
+	assert_that(
+		(bool) preg_match( "/\\['composants'\\]\\s*\\?\\?\\s*\\[\\]/", (string) $src ),
+		'l’écran doit descendre dans « composants » avant d’indexer par nom'
+	);
+
+	assert_that(
+		! preg_match( '/\\$etat\\s*=\\s*\\(array\\)\\s*get_site_option\\(\\s*Updater::OPTION_ETAT/', (string) $src ),
+		'lire l’option à la racine rend chaque ligne vide, en silence'
+	);
+} );
 
 echo "\n{$passed} test(s) réussi(s), {$failed} échec(s).\n";
 exit( $failed ? 1 : 0 );

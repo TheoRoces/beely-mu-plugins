@@ -53,6 +53,11 @@
       "chemin": "beely-animations",
       "source": "blueprint/mu-plugins/beely-animations"
     },
+    "beely-plan": {
+      "repo": "TheoRoces/beely-mu-plugins",
+      "chemin": "beely-plan",
+      "source": "blueprint/mu-plugins/beely-plan"
+    },
     "beely-bridge": {
       "repo": "TheoRoces/beely-bridge",
       "source": "plugin/beely-bridge"
