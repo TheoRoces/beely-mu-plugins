@@ -305,7 +305,7 @@ test(
 test(
 	'une destination égale à la source ne redirige pas',
 	function (): void {
-		// Cas présent tel quel dans la table de un site du parc : le slug n'avait pas
+		// Cas présent tel quel dans la table de mon-site : le slug n'avait pas
 		// changé, l'entrée a été recopiée quand même. Sans ce contrôle, la page
 		// devient définitivement inatteignable — le navigateur boucle.
 		$exacte = [
@@ -444,7 +444,7 @@ echo "\nOrdre des motifs\n";
 test(
 	'un motif masqué par un motif plus général est signalé',
 	function (): void {
-		// Les quatre motifs de un site du parc, dans leur ordre réel : la pagination
+		// Les quatre motifs de mon-site, dans leur ordre réel : la pagination
 		// des archives est déclarée après le motif générique des fiches, qui
 		// l'attrape déjà — /activity/page/2/ part donc vers
 		// /evenements/page/2/, qui n'existe pas.
