@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Beely — confort du builder
  * Description: Cinq manques de Bricks Builder, comblés sans extension tierce : la classe active reste sélectionnée, un curseur balaie les largeurs au pixel, un double-clic dans la structure ouvre un composant, le canevas reçoit le CSS des classes globales, et ce qu'une entrée au défilement y masquerait reste visible.
- * Version:     2.4.0
+ * Version:     2.4.1
  * Author:      Beely
  * Requires PHP: 8.1
  *
@@ -832,8 +832,26 @@ add_action(
 	 * une révélation » : le CSS ne connaît pas l'intention. Mais on peut la lire
 	 * dans les feuilles servies, où un état d'entrée a une forme reconnaissable —
 	 * une règle qui MASQUE (`opacity: 0`, `visibility: hidden`) et qui est gardée
-	 * par l'ABSENCE d'une marque de révélation (`:not(.is-in)`, `:not(.is-visible)`,
-	 * `:not(.is-built)`, `:not(.is-revealable)`).
+	 * par une promesse de révélation.
+	 *
+	 * Cette promesse prend deux formes, et **la première est de loin la plus
+	 * courante** : mesuré sur un site du parc, 97 règles masquent, dont **10
+	 * seulement** portent un `:not(.is-…)`. Les 87 autres sont simplement gardées
+	 * par `.u-js`.
+	 *
+	 * | Forme | Ce qu'elle dit |
+	 * |---|---|
+	 * | `.u-js <sél> { opacity: 0 }` | « un script tourne, il révélera » — la révélation vit dans une AUTRE règle |
+	 * | `<sél>:not(.is-in) { opacity: 0 }` | la révélation est dans la même règle, par la négative |
+	 *
+	 * `.u-js` est donc le critère principal, et ce n'est pas un raccourci : la
+	 * classe n'existe QUE pour que le masque ne s'arme pas quand le script ne
+	 * tourne pas. Dans le canevas, aucun script ne révèle — tout masque gardé par
+	 * elle doit donc tomber.
+	 *
+	 * N'avoir retenu que le `:not(.is-…)` a coûté une mesure : la page d'accueil
+	 * est revenue avec des blocs invisibles dans le builder, c'est-à-dire le
+	 * défaut même que cette fonction existe pour empêcher.
 	 *
 	 * Pour chacune, on réémet le MÊME sélecteur avec les valeurs d'arrivée. Même
 	 * spécificité, mais plus loin dans le document et en `!important` : il gagne.
@@ -844,7 +862,7 @@ add_action(
 	 * peut de toute façon pas porter les états d'entrée du thème.
 	 */
 	var MASQUE = /(^|[^-\w])(opacity\s*:\s*0(?![.\d])|visibility\s*:\s*hidden)/;
-	var GARDE = /:not\(\s*\.(is-in|is-visible|is-built|is-revealable)/;
+	var GARDE = /(^|[\s>+~(])\.u-js([\s>+~.:\[]|$)|:not\(\s*\.(is-in|is-visible|is-built|is-revealable)/;
 
 	function demasquer() {
 		if (document.getElementById('beely-demasque')) { return; }

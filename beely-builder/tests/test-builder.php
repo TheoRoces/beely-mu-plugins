@@ -288,6 +288,14 @@ test( 'le canevas reçoit le démasquage par sélecteur, et garde u-js', functio
 	 * délibérément transparent redeviendrait opaque dans le builder.
 	 */
 	assert_true( str_contains( $php, 'is-visible|is-built|is-revealable' ), 'la garde de révélation est absente' );
+
+	/*
+	 * `.u-js` est le critère PRINCIPAL, pas un complément : sur un site du parc,
+	 * 97 règles masquent et 10 seulement portent un `:not(.is-…)`. N'avoir retenu
+	 * que la seconde forme a rendu la page d'accueil trouée dans le builder —
+	 * le défaut même que cette fonction empêche.
+	 */
+	assert_true( str_contains( $php, '\\.u-js' ), 'la garde .u-js est absente : 87 masques sur 97 échapperaient' );
 	assert_true( str_contains( $php, 'opacity\\s*:\\s*0' ), 'la reconnaissance du masque est absente' );
 } );
 
