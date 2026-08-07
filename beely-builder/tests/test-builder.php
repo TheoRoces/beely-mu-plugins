@@ -252,18 +252,18 @@ test( 'les témoins retirés sont ceux du parc, et rien n’est ajouté', functi
 	$r = revelation();
 
 	/*
-	 * `u-js` N'EST PLUS DANS LA LISTE — 2.4.0.
+	 * `u-js` Y RESTE, et la 2.4.x a mesuré le prix de l'en sortir.
 	 *
-	 * La retirer tuait les masques, et avec eux TOUT ce que la classe porte :
-	 * 192 règles mesurées sur un site du parc, dont une douzaine seulement sont
-	 * des états d'entrée. Le builder cessait donc d'appliquer 180 styles
-	 * ordinaires — un rembourrage de 22 px au lieu de 26, une section en
-	 * `relative` au lieu de `sticky`. Il ne montrait plus le site, ce que cette
-	 * fonction existe précisément pour empêcher.
+	 * Son retrait tue 95 styles ordinaires en plus des 97 masques. La 2.4.0 a
+	 * tenté de ne neutraliser que les seconds, par leur sélecteur : le canevas
+	 * est passé de 0 à **32 éléments invisibles**. Une contre-règle de même
+	 * sélecteur et de même `!important` se départage par l'ordre d'insertion, et
+	 * Bricks écrit après nous.
 	 *
-	 * Le masque se neutralise maintenant par son sélecteur, dans le canevas.
+	 * Un builder aux styles légèrement différents reste utilisable ; un builder
+	 * à trous, non. Ce cas garde l'arbitrage écrit, pour qu'il ne se rejoue pas.
 	 */
-	assert_same( [ 'js', 'is-revealable' ], $r['retirer'] );
+	assert_same( [ 'u-js', 'js', 'is-revealable' ], $r['retirer'] );
 
 	/*
 	 * Vide **à dessein**, et mesuré : poser les marques d'arrivée donne le même

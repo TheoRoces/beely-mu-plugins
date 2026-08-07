@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Beely — confort du builder
  * Description: Cinq manques de Bricks Builder, comblés sans extension tierce : la classe active reste sélectionnée, un curseur balaie les largeurs au pixel, un double-clic dans la structure ouvre un composant, le canevas reçoit le CSS des classes globales, et ce qu'une entrée au défilement y masquerait reste visible.
- * Version:     2.4.1
+ * Version:     2.4.2
  * Author:      Beely
  * Requires PHP: 8.1
  *
@@ -133,23 +133,32 @@ const DEFAUTS = [
  */
 const REVELATION = [
 	/*
-	 * `u-js` N'EST PLUS RETIRÉE — et c'est la correction de la 2.4.0.
+	 * `u-js` reste retirée — et la 2.4.x a mesuré ce qu'il en coûte de ne PAS le
+	 * faire.
 	 *
-	 * La retirer tuait bien les masques. Elle tuait aussi **tout le reste** :
-	 * mesuré le 07/08/2026 sur un site du parc, 192 règles sont conditionnées à
-	 * `.u-js` — 115 dans le CSS personnalisé global, 77 dans la feuille du
-	 * thème — et une douzaine seulement sont des états d'entrée. Les 180 autres
-	 * sont des styles ordinaires, que le builder cessait donc d'appliquer.
+	 * Le grief est réel : la retirer tue les masques, et avec eux tout ce que la
+	 * classe porte. Mesuré le 07/08/2026 sur un site du parc, **192 règles** sont
+	 * conditionnées à `.u-js` — 115 dans le CSS personnalisé global, 77 dans la
+	 * feuille du thème — dont **97 masquent** et 95 sont des styles ordinaires.
+	 * Ces 95 là cessent de s'appliquer dans le builder : un rembourrage de 22 px
+	 * au lieu de 26, une section en `relative` au lieu de `sticky`.
 	 *
-	 * Ce que ça donnait à l'écran, sur la seule page d'accueil : un rembourrage
-	 * de 22 px au lieu de 26, une section en `relative` au lieu de `sticky`. Le
-	 * builder ne montrait pas le site — précisément ce que cette fonction
-	 * existe pour empêcher.
+	 * La 2.4.0 a tenté de ne neutraliser que les masques, par leur sélecteur.
+	 * **Mesuré, le résultat est pire** : 32 éléments invisibles dans le canevas
+	 * contre 0, et 18 classes rendues différemment contre 5. La contre-règle ne
+	 * l'emporte pas de façon fiable — même sélecteur, même `!important`, et
+	 * l'ordre d'insertion décide, or Bricks écrit ses feuilles après nous.
 	 *
-	 * Le masque se neutralise désormais **par son sélecteur**, ci-dessous, ce
-	 * qui est l'intervention la plus petite qui donne le résultat.
+	 * On garde donc le retrait, qui a un défaut connu et borné, plutôt qu'un
+	 * remplacement qui rend le builder trouable. Le `demasquer()` ci-dessous
+	 * reste posé : il ne peut rien casser tant que `u-js` part, et il servira le
+	 * jour où le bon mécanisme sera trouvé — vraisemblablement une feuille
+	 * injectée dans le canevas APRÈS celles de Bricks, et non depuis `wp_footer`.
+	 *
+	 * L'arbitrage se relit : un builder qui montre des styles légèrement
+	 * différents reste utilisable ; un builder à trous ne l'est pas.
 	 */
-	'retirer' => [ 'js', 'is-revealable' ],
+	'retirer' => [ 'u-js', 'js', 'is-revealable' ],
 	'ajouter' => [],
 ];
 
