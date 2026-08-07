@@ -1,31 +1,21 @@
-# Composants Beely pour WordPress
+# Canal de mise à jour
 
-> **Miroir généré — ne pas modifier ici.**
->
-> La source vit dans le dépôt `wordpress`, sous
-> `blueprint/mu-plugins/`.
-> Ce dépôt est régénéré à chaque publication par
-> `bin/release-mu-plugin.mjs`. Une modification faite ici serait écrasée.
+Contenu produit automatiquement. Une modification faite ici ne survit pas à la
+publication suivante.
 
-## À quoi il sert
+## Ce que porte une version
 
-Il porte les **releases** que `beely-updater` installe sur les sites.
-Chaque release publie :
+- l’archive de l’extension — les tests n’y sont pas ;
+- son empreinte, relue avant toute écriture sur le disque ;
+- sa signature, relue lorsque la clé publique est présente.
 
-```
-<composant>-<version>.zip           le dossier du composant, tests exclus
-<composant>-<version>.zip.sha256    son empreinte, vérifiée avant installation
-<composant>-<version>.zip.sig       sa signature Ed25519, si le parc est armé
-```
+L’étiquette de version commence par le nom de l’extension, ce dépôt en
+rassemblant plusieurs.
 
-Les tags sont préfixés par le composant — `beely-seo-v1.3.0` — parce que
-ce dépôt en héberge plusieurs.
+## En dépannage
 
-## Installation manuelle
+Le site installe seul. À la main, l’archive se pose dans
+`wp-content/mu-plugins/`.
 
-Elle ne devrait pas être nécessaire — `beely-updater` s’en charge. Au besoin,
-décompresser l’archive dans `wp-content/mu-plugins/`.
-
-`beely-loader.php` doit être à la racine de `mu-plugins/` : WordPress ne
-charge que les fichiers PHP qui y sont directement, et c’est lui qui charge les
-sous-dossiers. Il n’est pas suivi par l’updater.
+Attention au fichier de chargement : il se place directement dans ce dossier,
+WordPress n’exécutant que les fichiers PHP qu’il y trouve au premier niveau.
