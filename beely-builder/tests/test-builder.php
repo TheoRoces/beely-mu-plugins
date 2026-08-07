@@ -251,7 +251,19 @@ test( 'les cinq fonctions sont actives par défaut', function (): void {
 test( 'les témoins retirés sont ceux du parc, et rien n’est ajouté', function (): void {
 	$r = revelation();
 
-	assert_same( [ 'u-js', 'js', 'is-revealable' ], $r['retirer'] );
+	/*
+	 * `u-js` N'EST PLUS DANS LA LISTE — 2.4.0.
+	 *
+	 * La retirer tuait les masques, et avec eux TOUT ce que la classe porte :
+	 * 192 règles mesurées sur un site du parc, dont une douzaine seulement sont
+	 * des états d'entrée. Le builder cessait donc d'appliquer 180 styles
+	 * ordinaires — un rembourrage de 22 px au lieu de 26, une section en
+	 * `relative` au lieu de `sticky`. Il ne montrait plus le site, ce que cette
+	 * fonction existe précisément pour empêcher.
+	 *
+	 * Le masque se neutralise maintenant par son sélecteur, dans le canevas.
+	 */
+	assert_same( [ 'js', 'is-revealable' ], $r['retirer'] );
 
 	/*
 	 * Vide **à dessein**, et mesuré : poser les marques d'arrivée donne le même
@@ -259,6 +271,24 @@ test( 'les témoins retirés sont ceux du parc, et rien n’est ajouté', functi
 	 * une translation. La plus petite intervention qui suffit.
 	 */
 	assert_same( [], $r['ajouter'] );
+} );
+
+test( 'le canevas reçoit le démasquage par sélecteur, et garde u-js', function (): void {
+	// On lit la SOURCE du composant, comme les autres cas de ce fichier : le
+	// script du canevas n'est émis que dans une iframe de builder, qu'un banc
+	// hors ligne ne peut pas monter.
+	$php = code_php();
+
+	assert_true( str_contains( $php, 'beely-demasque' ), 'le démasquage par sélecteur n’est pas servi' );
+
+	/*
+	 * La garde qui décide ce qu'est un masque : une règle qui masque ET qui est
+	 * conditionnée à l'ABSENCE d'une marque de révélation. Sans le second terme,
+	 * on démasquerait toute règle du site qui pose `opacity: 0` — un élément
+	 * délibérément transparent redeviendrait opaque dans le builder.
+	 */
+	assert_true( str_contains( $php, 'is-visible|is-built|is-revealable' ), 'la garde de révélation est absente' );
+	assert_true( str_contains( $php, 'opacity\\s*:\\s*0' ), 'la reconnaissance du masque est absente' );
 } );
 
 test( 'un nom qui n’est pas une classe est refusé, pas assaini', function (): void {
@@ -280,6 +310,8 @@ test( 'un nom qui n’est pas une classe est refusé, pas assaini', function ():
 	 */
 	assert_same( [ 'u-js', 'is-revealable' ], $r['retirer'] );
 	assert_same( [ 'is-in' ], $r['ajouter'] );
+	// Le filtre reste souverain : un site qui veut retirer `u-js` le peut.
+
 
 	unset( $etat['filtres']['beely/builder/revelation'] );
 } );

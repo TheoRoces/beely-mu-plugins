@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Beely — confort du builder
  * Description: Cinq manques de Bricks Builder, comblés sans extension tierce : la classe active reste sélectionnée, un curseur balaie les largeurs au pixel, un double-clic dans la structure ouvre un composant, le canevas reçoit le CSS des classes globales, et ce qu'une entrée au défilement y masquerait reste visible.
- * Version:     2.3.0
+ * Version:     2.4.0
  * Author:      Beely
  * Requires PHP: 8.1
  *
@@ -132,7 +132,24 @@ const DEFAUTS = [
  * Un site qui emploie d'autres noms les déclare par `beely/builder/revelation`.
  */
 const REVELATION = [
-	'retirer' => [ 'u-js', 'js', 'is-revealable' ],
+	/*
+	 * `u-js` N'EST PLUS RETIRÉE — et c'est la correction de la 2.4.0.
+	 *
+	 * La retirer tuait bien les masques. Elle tuait aussi **tout le reste** :
+	 * mesuré le 07/08/2026 sur un site du parc, 192 règles sont conditionnées à
+	 * `.u-js` — 115 dans le CSS personnalisé global, 77 dans la feuille du
+	 * thème — et une douzaine seulement sont des états d'entrée. Les 180 autres
+	 * sont des styles ordinaires, que le builder cessait donc d'appliquer.
+	 *
+	 * Ce que ça donnait à l'écran, sur la seule page d'accueil : un rembourrage
+	 * de 22 px au lieu de 26, une section en `relative` au lieu de `sticky`. Le
+	 * builder ne montrait pas le site — précisément ce que cette fonction
+	 * existe pour empêcher.
+	 *
+	 * Le masque se neutralise désormais **par son sélecteur**, ci-dessous, ce
+	 * qui est l'intervention la plus petite qui donne le résultat.
+	 */
+	'retirer' => [ 'js', 'is-revealable' ],
 	'ajouter' => [],
 ];
 
@@ -808,7 +825,58 @@ add_action(
 	var RETIRER = <?php echo $retirer; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>;
 	var AJOUTER = <?php echo $ajouter; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>;
 
+	/*
+	 * Neutraliser les MASQUES, et eux seuls.
+	 *
+	 * On ne peut pas écrire en CSS « rends visible ce qui n'est masqué que par
+	 * une révélation » : le CSS ne connaît pas l'intention. Mais on peut la lire
+	 * dans les feuilles servies, où un état d'entrée a une forme reconnaissable —
+	 * une règle qui MASQUE (`opacity: 0`, `visibility: hidden`) et qui est gardée
+	 * par l'ABSENCE d'une marque de révélation (`:not(.is-in)`, `:not(.is-visible)`,
+	 * `:not(.is-built)`, `:not(.is-revealable)`).
+	 *
+	 * Pour chacune, on réémet le MÊME sélecteur avec les valeurs d'arrivée. Même
+	 * spécificité, mais plus loin dans le document et en `!important` : il gagne.
+	 * Rien d'autre n'est touché — c'est ce qui permet de garder `u-js` sur la
+	 * racine, et avec elle les 180 règles ordinaires qu'elle porte.
+	 *
+	 * Une feuille d'une autre origine lève à la lecture : on la saute. Elle ne
+	 * peut de toute façon pas porter les états d'entrée du thème.
+	 */
+	var MASQUE = /(^|[^-\w])(opacity\s*:\s*0(?![.\d])|visibility\s*:\s*hidden)/;
+	var GARDE = /:not\(\s*\.(is-in|is-visible|is-built|is-revealable)/;
+
+	function demasquer() {
+		if (document.getElementById('beely-demasque')) { return; }
+
+		var selecteurs = [];
+
+		function parcourir(regles) {
+			for (var i = 0; i < regles.length; i++) {
+				var r = regles[i];
+
+				if (r.cssRules) { parcourir(r.cssRules); continue; }
+				if (!r.selectorText || !r.style || !r.style.cssText) { continue; }
+				if (!MASQUE.test(r.style.cssText) || !GARDE.test(r.selectorText)) { continue; }
+
+				selecteurs.push(r.selectorText);
+			}
+		}
+
+		for (var s = 0; s < document.styleSheets.length; s++) {
+			try { parcourir(document.styleSheets[s].cssRules); } catch (e) { /* autre origine */ }
+		}
+
+		if (!selecteurs.length) { return; }
+
+		var f = document.createElement('style');
+		f.id = 'beely-demasque';
+		f.textContent = selecteurs.join(',\n') + ' { opacity: 1 !important; visibility: visible !important; transform: none !important; }';
+		(document.head || document.documentElement).appendChild(f);
+	}
+
 	function passe() {
+		demasquer();
 		RETIRER.forEach(function (c) { document.documentElement.classList.remove(c); });
 
 		var noeuds = document.body ? document.body.querySelectorAll('*') : [];
