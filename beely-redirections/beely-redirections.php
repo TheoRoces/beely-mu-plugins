@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Beely — redirections
  * Description: Redirections 301 depuis les anciennes URL d'un site refondu, lues dans un fichier versionné du thème. Remplace Redirection et consorts.
- * Version:     1.3.1
+ * Version:     1.3.2
  * Author:      Beely
  *
  * Une refonte casse les adresses. Sans redirections, chaque lien entrant — un
@@ -48,7 +48,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const VERSION = '1.3.1';
+const VERSION = '1.3.2';
 
 /**
  * Statuts que l'on accepte de renvoyer.
@@ -473,6 +473,32 @@ add_action(
 
 		if ( 410 === $cible['statut'] ) {
 			status_header( 410 );
+
+			/*
+			 * Poser l'en-tête ne suffit pas : la suite de la requête nous
+			 * échappe.
+			 *
+			 * `status_header()` n'interrompt rien, et c'est voulu — un 410 doit
+			 * encore rendre un corps de page, sinon le navigateur affiche du
+			 * vide. Seulement `redirect_canonical` s'exécute après nous, en
+			 * priorité 10, et sur une requête classée 404 il cherche un contenu
+			 * dont l'identifiant d'URL **débute** comme celui demandé. Quand il
+			 * en trouve un, il émet une 301, et notre 410 est remplacé.
+			 *
+			 * Le symptôme trompe : le visiteur atterrit sur une page
+			 * vraisemblable, souvent celle qu'on aurait choisie. Le seul indice
+			 * tient dans un en-tête, `x-redirect-by: WordPress`.
+			 *
+			 * Les tests unitaires ne l'atteignent pas non plus — ils
+			 * interrogent la résolution, qui rend le bon statut. Le défaut vit
+			 * dans ce qu'on en fait ensuite.
+			 *
+			 * Une adresse déclarée éteinte n'a pas de forme canonique : on
+			 * désarme la devinette **et** la redirection canonique elle-même,
+			 * qui agit aussi pour d'autres motifs.
+			 */
+			remove_action( 'template_redirect', 'redirect_canonical' );
+			add_filter( 'do_redirect_guess_404_permalink', '__return_false' );
 
 			return;
 		}

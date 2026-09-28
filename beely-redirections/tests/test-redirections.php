@@ -517,6 +517,62 @@ test(
 	}
 );
 
+/* --- Ce que devient le 410 une fois l'en-tête posé ------------------- */
+
+/**
+ * Rend un source PHP débarrassé de ses commentaires.
+ *
+ * Une vérification de présence doit porter sur des instructions. Le
+ * commentaire qui justifie un appel en cite forcément le nom : le laisser
+ * dans la matière examinée reviendrait à se contenter de l'explication à la
+ * place de l'acte. Les chaînes restent, puisque ce sont elles qu'on cherche
+ * dans les arguments.
+ */
+function instructions_seules( string $source ): string {
+	$restant = '';
+
+	foreach ( token_get_all( $source ) as $jeton ) {
+		if ( is_array( $jeton ) ) {
+			if ( in_array( $jeton[0], [ T_COMMENT, T_DOC_COMMENT, T_INLINE_HTML ], true ) ) {
+				continue;
+			}
+
+			$restant .= $jeton[1];
+			continue;
+		}
+
+		$restant .= $jeton;
+	}
+
+	return $restant;
+}
+
+$fichier      = (string) file_get_contents( dirname( __DIR__ ) . '/beely-redirections.php' );
+$instructions = instructions_seules( $fichier );
+
+test(
+	'la matière examinée ne contient plus les explications',
+	function () use ( $fichier, $instructions ): void {
+		// Cette formule figure uniquement dans la prose du module. Si le
+		// filtre la laisse passer, la vérification suivante ne prouve rien.
+		assert_same( true, str_contains( $fichier, 'atterrit sur une page' ), 'présente dans le module' );
+		assert_same( false, str_contains( $instructions, 'atterrit sur une page' ), 'écartée des instructions' );
+	}
+);
+
+test(
+	'une adresse éteinte désarme la redirection canonique',
+	function () use ( $instructions ): void {
+		/*
+		 * `status_header( 410 )` laisse la requête se poursuivre, et
+		 * `redirect_canonical` rend ensuite une 301 vers le contenu dont
+		 * l'identifiant d'URL commence comme celui demandé. Le 410 disparaît.
+		 */
+		assert_same( true, str_contains( $instructions, "remove_action( 'template_redirect', 'redirect_canonical' )" ), 'canonique désarmée' );
+		assert_same( true, str_contains( $instructions, 'do_redirect_guess_404_permalink' ), 'devinette désarmée' );
+	}
+);
+
 printf( "\n%d test(s) réussi(s), %d échec(s).\n", $passed, $failed );
 
 unlink( $journal );
